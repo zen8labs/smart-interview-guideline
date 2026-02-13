@@ -1,0 +1,9 @@
+.git
+.venv
+README.md
+.agent
+.agents
+.cursor
+dev-docs
+AGENTS.md
+.gitignore

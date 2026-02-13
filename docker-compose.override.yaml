@@ -1,0 +1,67 @@
+services:
+  # Override app service for development
+  app:
+    build:
+      context: .
+      dockerfile: dockerfiles/dev.Dockerfile
+    volumes:
+      # Mount source code for hot reload
+      - ./app:/app/app
+      - ./asgi.py:/app/asgi.py
+      - ./gunicorn.config.py:/app/gunicorn.config.py
+      - ./pyproject.toml:/app/pyproject.toml
+      # Exclude .venv to use container's virtual environment
+      - /app/.venv
+    environment:
+      # Development environment variables
+      LOG_LEVEL: debug
+      RELOAD: "true"
+    command: ["uv", "run", "uvicorn", "asgi:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    develop:
+      watch:
+        # Sync source code changes
+        - action: sync
+          path: ./app
+          target: /app/app
+        - action: sync
+          path: ./asgi.py
+          target: /app/asgi.py
+        - action: sync
+          path: ./gunicorn.config.py
+          target: /app/gunicorn.config.py
+        # Rebuild on dependency changes
+        - action: rebuild
+          path: ./pyproject.toml
+
+  # Add frontend service for development
+  frontend:
+    build:
+      context: .
+      dockerfile: dockerfiles/dev-frontend.Dockerfile
+    container_name: smart-interview-frontend
+    restart: unless-stopped
+    volumes:
+      # Mount web directory for HMR
+      - ./web:/app
+      # Exclude node_modules to use container's dependencies
+      - /app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    networks:
+      - app_network
+    environment:
+      - NODE_ENV=development
+    develop:
+      watch:
+        # Sync source code changes
+        - action: sync
+          path: ./web
+          target: /app
+          ignore:
+            - node_modules/
+            - dist/
+        # Rebuild on dependency changes
+        - action: rebuild
+          path: ./web/package.json
+        - action: rebuild
+          path: ./web/yarn.lock
