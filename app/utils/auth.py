@@ -162,5 +162,36 @@ async def get_current_user(
     return user
 
 
+async def get_current_admin(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    session: DBSession,
+) -> User:
+    """
+    Get the current authenticated admin user from JWT token.
+
+    This is a FastAPI dependency that can be used to protect admin routes.
+
+    Args:
+        credentials: HTTP Bearer token credentials
+        session: Database session
+
+    Returns:
+        User: The authenticated admin user
+
+    Raises:
+        HTTPException: If authentication fails or user is not admin
+    """
+    user = await get_current_user(credentials, session)
+
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+
+    return user
+
+
 # Type alias for dependency injection
 CurrentUser = Annotated[User, Depends(get_current_user)]
+AdminUser = Annotated[User, Depends(get_current_admin)]

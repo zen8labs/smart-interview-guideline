@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AuthLayout } from './layouts/AuthLayout'
 import { AppLayout } from './layouts/AppLayout'
+import { AdminLayout } from './layouts/AdminLayout'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
@@ -8,6 +9,10 @@ import { DashboardPage } from './pages/DashboardPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { AdminProtectedRoute } from './components/AdminProtectedRoute'
+import { AdminLoginPage } from './pages/admin/AdminLoginPage'
+import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage'
 
 export const router = createBrowserRouter([
   // Public auth routes - centered layout, no sidebar
@@ -80,6 +85,34 @@ export const router = createBrowserRouter([
             description="Configure your account preferences and notifications"
           />
         ),
+      },
+    ],
+  },
+
+  // Admin routes - separate layout and authentication
+  {
+    path: 'admin/login',
+    element: <AdminLoginPage />,
+  },
+  {
+    path: 'admin',
+    element: (
+      <AdminProtectedRoute>
+        <AdminLayout />
+      </AdminProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/admin/users" replace />,
+      },
+      {
+        path: 'users',
+        element: <AdminUsersPage />,
+      },
+      {
+        path: 'users/:userId',
+        element: <AdminUserDetailPage />,
       },
     ],
   },

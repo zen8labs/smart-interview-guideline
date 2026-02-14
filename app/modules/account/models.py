@@ -31,6 +31,7 @@ class User(SQLModel, table=True):
     email: str = SQLField(unique=True, index=True, max_length=255)
     hashed_password: str = SQLField(max_length=255)
     is_active: bool = SQLField(default=True)
+    is_admin: bool = SQLField(default=False)
 
     # Profile fields
     role: str | None = SQLField(default=None, max_length=50)
@@ -87,6 +88,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     is_active: bool
+    is_admin: bool = False
     role: str | None = None
     experience_years: int | None = None
     cv_filename: str | None = None
