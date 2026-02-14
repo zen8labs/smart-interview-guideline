@@ -197,6 +197,53 @@ class OpenAISettings(BaseSettings):
     )
 
 
+class StorageSettings(BaseSettings):
+    """Settings for file upload storage."""
+
+    upload_dir: str = Field(
+        default="./uploads",
+        description="Root directory for file uploads",
+        validation_alias="UPLOAD_DIR",
+    )
+
+    cv_subdir: str = Field(
+        default="cv",
+        description="Subdirectory under upload_dir for CV files",
+        validation_alias="UPLOAD_CV_SUBDIR",
+    )
+
+    max_cv_size_mb: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum CV file size in megabytes",
+        validation_alias="MAX_CV_SIZE_MB",
+    )
+
+    allowed_cv_extensions: list[str] = Field(
+        default=[".pdf", ".docx", ".txt"],
+        description="Allowed file extensions for CV uploads",
+    )
+
+    @property
+    def cv_upload_path(self) -> str:
+        """Get the full path for CV uploads."""
+        import os
+        return os.path.join(self.upload_dir, self.cv_subdir)
+
+    @property
+    def max_cv_size_bytes(self) -> int:
+        """Get the maximum CV file size in bytes."""
+        return self.max_cv_size_mb * 1024 * 1024
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class AuthSettings(BaseSettings):
     jwt_secret_key: str = Field(
         default="your-secret-key-change-in-production-please",
@@ -265,6 +312,7 @@ class Settings(BaseSettings):
     cors: CORSSettings = Field(default_factory=CORSSettings)
     openai: OpenAISettings = Field(default_factory=OpenAISettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
+    storage: StorageSettings = Field(default_factory=StorageSettings)
 
     @property
     def is_production(self) -> bool:
@@ -316,6 +364,7 @@ __all__ = [
     "CORSSettings",
     "OpenAISettings",
     "AuthSettings",
+    "StorageSettings",
     "get_settings",
     "settings",
 ]

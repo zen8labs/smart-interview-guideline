@@ -1,5 +1,5 @@
 """Account module for user authentication and management."""
 
-from .urls import router
+from .urls import profile_router, router
 
-__all__ = ["router"]
+__all__ = ["router", "profile_router"]

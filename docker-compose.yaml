@@ -40,6 +40,8 @@ services:
       # Application Configuration
       PYTHONUNBUFFERED: 1
       PYTHONDONTWRITEBYTECODE: 1
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "${APP_PORT:-8000}:8000"
     networks:
@@ -63,3 +65,6 @@ volumes:
   postgres_data:
     driver: local
     name: smart-interview-postgres-data
+  uploads_data:
+    driver: local
+    name: smart-interview-uploads-data

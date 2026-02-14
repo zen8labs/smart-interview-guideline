@@ -15,6 +15,9 @@ export interface User {
   id: number;
   email: string;
   is_active: boolean;
+  role: string | null;
+  experience_years: number | null;
+  cv_filename: string | null;
   created_at: string;
 }
 
@@ -28,6 +31,9 @@ export interface UserInfoResponse {
   id: number;
   email: string;
   is_active: boolean;
+  role: string | null;
+  experience_years: number | null;
+  cv_filename: string | null;
   created_at: string;
 }
 

@@ -12,6 +12,8 @@ services:
       - ./pyproject.toml:/app/pyproject.toml
       # Exclude .venv to use container's virtual environment
       - /app/.venv
+      # Persist uploaded files on host for development
+      - ./uploads:/app/uploads
     environment:
       # Development environment variables
       LOG_LEVEL: debug

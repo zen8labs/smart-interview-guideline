@@ -19,7 +19,9 @@ export const baseApi = createApi({
       if (token) {
         headers.set('authorization', `Bearer ${token}`);
       }
-      headers.set('Content-Type', 'application/json');
+      // Note: Do NOT set Content-Type here.
+      // fetchBaseQuery sets it to application/json automatically for JSON bodies.
+      // For FormData (file uploads), the browser must set it with the boundary.
       return headers;
     },
   }),

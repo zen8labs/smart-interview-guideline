@@ -8,7 +8,7 @@ from sqlmodel import select
 
 from app.config import settings
 from app.models.example import ExampleModel
-from app.modules.account import router as account_router
+from app.modules.account import profile_router, router as account_router
 from app.utils.db import DBSession, database
 
 # Configure logging
@@ -33,6 +33,13 @@ async def lifespan(app: FastAPI):
         logger.info("Starting application...")
         database.init_db()
         await database.create_db_and_tables()
+
+        # Ensure upload directories exist
+        from pathlib import Path
+        cv_upload_path = Path(settings.storage.cv_upload_path)
+        cv_upload_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Upload directory ready: {cv_upload_path}")
+
         logger.info("Application startup complete")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
@@ -68,6 +75,7 @@ def create_app():
 
     # Include routers
     app.include_router(account_router)
+    app.include_router(profile_router)
 
     @app.get("/health")
     def health():

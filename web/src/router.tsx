@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
@@ -69,12 +70,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'profile',
-        element: (
-          <PlaceholderPage
-            title="Profile"
-            description="Manage your profile, role, and experience level"
-          />
-        ),
+        element: <ProfilePage />,
       },
       {
         path: 'settings',
