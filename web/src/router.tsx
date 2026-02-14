@@ -1,24 +1,18 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { App } from './App'
+import { AuthLayout } from './layouts/AuthLayout'
+import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { HomePage } from './pages/HomePage'
+import { DashboardPage } from './pages/DashboardPage'
+import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 export const router = createBrowserRouter([
+  // Public auth routes - centered layout, no sidebar
   {
-    path: '/',
-    element: <App />,
+    element: <AuthLayout />,
     children: [
-      {
-        index: true,
-        element: (
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        ),
-      },
       {
         path: 'login',
         element: <LoginPage />,
@@ -31,10 +25,72 @@ export const router = createBrowserRouter([
         path: 'forgot-password',
         element: <ForgotPasswordPage />,
       },
+    ],
+  },
+
+  // Protected app routes - sidebar + header layout
+  {
+    element: (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
+    children: [
       {
-        path: '*',
-        element: <Navigate to="/" replace />,
+        index: true,
+        element: <DashboardPage />,
+      },
+      {
+        path: 'interviews',
+        element: (
+          <PlaceholderPage
+            title="Interview Prep"
+            description="Analyze job descriptions and generate personalized study roadmaps"
+          />
+        ),
+      },
+      {
+        path: 'knowledge',
+        element: (
+          <PlaceholderPage
+            title="Knowledge Base"
+            description="Visual learning cards and AI-generated study materials"
+          />
+        ),
+      },
+      {
+        path: 'community',
+        element: (
+          <PlaceholderPage
+            title="Community"
+            description="Real interview questions from the community, anonymized and verified"
+          />
+        ),
+      },
+      {
+        path: 'profile',
+        element: (
+          <PlaceholderPage
+            title="Profile"
+            description="Manage your profile, role, and experience level"
+          />
+        ),
+      },
+      {
+        path: 'settings',
+        element: (
+          <PlaceholderPage
+            title="Settings"
+            description="Configure your account preferences and notifications"
+          />
+        ),
       },
     ],
+  },
+
+  // Catch-all redirect
+  {
+    path: '*',
+    element: <Navigate to="/" replace />,
   },
 ])
