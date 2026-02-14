@@ -197,6 +197,43 @@ class OpenAISettings(BaseSettings):
     )
 
 
+class AuthSettings(BaseSettings):
+    jwt_secret_key: str = Field(
+        default="your-secret-key-change-in-production-please",
+        description="Secret key for JWT token signing",
+        validation_alias="JWT_SECRET_KEY",
+    )
+
+    jwt_algorithm: str = Field(
+        default="HS256",
+        description="Algorithm for JWT token signing",
+        validation_alias="JWT_ALGORITHM",
+    )
+
+    access_token_expire_minutes: int = Field(
+        default=30,
+        ge=1,
+        le=10080,  # 1 week max
+        description="Access token expiration time in minutes",
+        validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES",
+    )
+
+    refresh_token_expire_days: int = Field(
+        default=7,
+        ge=1,
+        le=365,
+        description="Refresh token expiration time in days",
+        validation_alias="REFRESH_TOKEN_EXPIRE_DAYS",
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class Settings(BaseSettings):
     app_name: str = Field(
         default="Smart Interview Guideline",
@@ -227,6 +264,7 @@ class Settings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     cors: CORSSettings = Field(default_factory=CORSSettings)
     openai: OpenAISettings = Field(default_factory=OpenAISettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
 
     @property
     def is_production(self) -> bool:
@@ -277,6 +315,7 @@ __all__ = [
     "ServerSettings",
     "CORSSettings",
     "OpenAISettings",
+    "AuthSettings",
     "get_settings",
     "settings",
 ]

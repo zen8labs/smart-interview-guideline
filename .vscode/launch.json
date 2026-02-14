@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend (FastAPI)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "uv run uvicorn app.app:create_app --factory --reload --host 0.0.0.0 --port 8000",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Frontend (Vite)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "yarn dev",
+      "cwd": "${workspaceFolder}/web"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Dev: Backend + Frontend",
+      "configurations": [
+        "Backend (FastAPI)",
+        "Frontend (Vite)"
+      ],
+      "presentation": {
+        "hidden": false,
+        "group": "development",
+        "order": 1
+      },
+      "stopAll": true
+    }
+  ]
+}

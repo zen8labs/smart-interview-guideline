@@ -1,26 +1,34 @@
 import { baseApi } from '../baseApi';
 
 // Define types for your API requests and responses
+export interface RegisterRequest {
+  email: string;
+  password: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
 }
 
-export interface LoginResponse {
+export interface User {
+  id: number;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AuthResponse {
   access_token: string;
-  refresh_token: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-  };
+  token_type: string;
+  user: User;
 }
 
 export interface UserInfoResponse {
-  id: string;
+  id: number;
   email: string;
-  name: string;
-  role: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 /**
@@ -29,8 +37,19 @@ export interface UserInfoResponse {
  */
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    // Register mutation
+    register: builder.mutation<AuthResponse, RegisterRequest>({
+      query: (credentials) => ({
+        url: '/auth/register',
+        method: 'POST',
+        body: credentials,
+      }),
+      // Invalidate user cache on successful registration
+      invalidatesTags: ['User'],
+    }),
+
     // Login mutation
-    login: builder.mutation<LoginResponse, LoginRequest>({
+    login: builder.mutation<AuthResponse, LoginRequest>({
       query: (credentials) => ({
         url: '/auth/login',
         method: 'POST',
@@ -61,6 +80,7 @@ export const authApi = baseApi.injectEndpoints({
 
 // Export hooks for usage in functional components
 export const {
+  useRegisterMutation,
   useLoginMutation,
   useLogoutMutation,
   useGetUserInfoQuery,

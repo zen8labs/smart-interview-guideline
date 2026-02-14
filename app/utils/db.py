@@ -111,6 +111,7 @@ class Database:
         
         # Import all models here to ensure they're registered with SQLModel
         from app.models.example import ExampleModel  # noqa: F401
+        from app.modules.account.models import User  # noqa: F401
         
         async with self.engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)

@@ -2,10 +2,13 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import select
 
+from app.config import settings
 from app.models.example import ExampleModel
+from app.modules.account import router as account_router
 from app.utils.db import DBSession, database
 
 # Configure logging
@@ -53,6 +56,18 @@ def create_app():
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # Configure CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors.origins,
+        allow_credentials=settings.cors.allow_credentials,
+        allow_methods=settings.cors.allow_methods,
+        allow_headers=settings.cors.allow_headers,
+    )
+
+    # Include routers
+    app.include_router(account_router)
 
     @app.get("/health")
     def health():
