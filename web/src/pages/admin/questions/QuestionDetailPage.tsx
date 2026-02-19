@@ -10,8 +10,7 @@ import {
 } from '../../../store/api/endpoints/questionsApi'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
   ArrowLeft, 
   CheckCircle, 
@@ -68,8 +67,9 @@ export default function QuestionDetailPage() {
     
     try {
       await promoteToOfficial(questionId).unwrap()
-    } catch (err: any) {
-      alert(`Failed to promote question: ${err.data?.detail || 'Unknown error'}`)
+    } catch (err: unknown) {
+      const error = err as { data?: { detail?: string } }
+      alert(`Failed to promote question: ${error.data?.detail || 'Unknown error'}`)
     }
   }
 
@@ -89,10 +89,10 @@ export default function QuestionDetailPage() {
 
     switch (question.question_type) {
       case 'multiple_choice':
-        const choices = question.options.choices || []
+        { const choices = question.options.choices as { id: string; text: string; is_correct: boolean }[]
         return (
           <div className="space-y-3">
-            {choices.map((choice: any, index: number) => (
+            {choices.map((choice: { id: string; text: string; is_correct: boolean }, index: number) => (
               <div
                 key={choice.id || index}
                 className={cn(
@@ -119,7 +119,7 @@ export default function QuestionDetailPage() {
               </div>
             ))}
           </div>
-        )
+        ) }
 
       case 'true_false':
         return (
@@ -163,7 +163,7 @@ export default function QuestionDetailPage() {
                     <CheckCircle className="h-4 w-4" /> Test Cases
                 </h4>
                 <div className="space-y-2">
-                  {question.options.test_cases.map((tc: any, index: number) => (
+                  {question.options.test_cases.map((tc: { input: string; expected_output: string }, index: number) => (
                     <div key={index} className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm font-mono flex flex-col md:flex-row gap-4">
                       <div className="flex-1">
                           <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Input</span>

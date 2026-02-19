@@ -119,7 +119,7 @@ This document outlines the user stories for the MVP phase, updated to reflect fr
 **Frontend Sub-tasks:**
 
 - [ ] Create a Reusable Question Component (renders JSON data).
-- [ ] Implement UI for Multiple Choice and Boolean (True/False) questions.
+- [ ] Implement UI for Multiple Choice questions.
 - [ ] Create Assessment Flow (Sequential questions with progress bar).
 - [ ] Display results/score summary.
 
