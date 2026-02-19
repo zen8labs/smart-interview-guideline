@@ -25,10 +25,13 @@ export function AdminLoginPage() {
     try {
       const result = await adminLogin(formData).unwrap()
       
-      // Store token and admin flag
+      // Store token, admin flag, and current admin user for header display
       localStorage.setItem('token', result.access_token)
       localStorage.setItem('isAdmin', 'true')
-      
+      if (result.user) {
+        localStorage.setItem('adminUser', JSON.stringify({ email: result.user.email }))
+      }
+
       // Redirect to admin dashboard
       navigate('/admin/users')
     } catch (err: any) {

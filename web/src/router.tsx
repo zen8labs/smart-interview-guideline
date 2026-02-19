@@ -13,6 +13,9 @@ import { AdminProtectedRoute } from './components/AdminProtectedRoute'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage'
+import QuestionsListPage from './pages/admin/questions/QuestionsListPage'
+import QuestionFormPage from './pages/admin/questions/QuestionFormPage'
+import QuestionDetailPage from './pages/admin/questions/QuestionDetailPage'
 
 export const router = createBrowserRouter([
   // Public auth routes - centered layout, no sidebar
@@ -113,6 +116,22 @@ export const router = createBrowserRouter([
       {
         path: 'users/:userId',
         element: <AdminUserDetailPage />,
+      },
+      {
+        path: 'questions',
+        element: <QuestionsListPage />,
+      },
+      {
+        path: 'questions/create',
+        element: <QuestionFormPage />,
+      },
+      {
+        path: 'questions/:id',
+        element: <QuestionDetailPage />,
+      },
+      {
+        path: 'questions/:id/edit',
+        element: <QuestionFormPage />,
       },
     ],
   },

@@ -10,6 +10,7 @@ from app.config import settings
 from app.models.example import ExampleModel
 from app.modules.account import profile_router, router as account_router
 from app.modules.admin import router as admin_router
+from app.modules.questions import router as questions_router
 from app.utils.db import DBSession, database
 
 # Configure logging
@@ -78,6 +79,7 @@ def create_app():
     app.include_router(account_router)
     app.include_router(profile_router)
     app.include_router(admin_router)
+    app.include_router(questions_router)
 
     @app.get("/health")
     def health():
