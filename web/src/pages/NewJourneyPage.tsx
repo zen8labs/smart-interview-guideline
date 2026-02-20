@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Card,
   CardContent,
@@ -13,13 +12,13 @@ import { Input } from '@/components/ui/input'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { PreparationStepper } from '@/components/PreparationStepper'
 import { useSubmitAnalysisMutation } from '@/store/api/endpoints/analysisApi'
-import { FileText, Upload, CheckCircle2, Link as LinkIcon } from 'lucide-react'
+import { JdAnalysisResultCard } from '@/components/JdAnalysisResultCard'
+import { FileText, Upload, Link as LinkIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type InputTab = 'text' | 'file' | 'url'
 
 export function NewJourneyPage() {
-  const navigate = useNavigate()
   const [submitAnalysis, { isLoading, isSuccess, data, error }] =
     useSubmitAnalysisMutation()
 
@@ -49,49 +48,12 @@ export function NewJourneyPage() {
     return (
       <div className="mx-auto w-full max-w-2xl space-y-5">
         <PreparationStepper currentStep={0} preparationId={data.preparation_id} />
-        <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-              <CheckCircle2 className="size-5" />
-              <CardTitle>Phân tích xong</CardTitle>
-            </div>
-            <CardDescription>
-              Đã trích xuất kỹ năng và domain từ JD. Tiếp tục bước Memory Scan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.extracted_keywords.skills?.length ? (
-              <div>
-                <p className="mb-1 text-sm font-medium text-muted-foreground">Skills</p>
-                <p className="text-sm">{data.extracted_keywords.skills.join(', ')}</p>
-              </div>
-            ) : null}
-            {data.extracted_keywords.domains?.length ? (
-              <div>
-                <p className="mb-1 text-sm font-medium text-muted-foreground">Domains</p>
-                <p className="text-sm">{data.extracted_keywords.domains.join(', ')}</p>
-              </div>
-            ) : null}
-            {data.extracted_keywords.keywords?.length ? (
-              <div>
-                <p className="mb-1 text-sm font-medium text-muted-foreground">Keywords</p>
-                <p className="text-sm">{data.extracted_keywords.keywords.join(', ')}</p>
-              </div>
-            ) : null}
-            <div className="flex gap-2 pt-2">
-              <Button
-                onClick={() =>
-                  navigate(`/preparations/${data.preparation_id}/memory-scan`)
-                }
-              >
-                Tiếp tục → Memory Scan
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/')}>
-                Dashboard
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <JdAnalysisResultCard
+          preparationId={data.preparation_id}
+          extracted_keywords={data.extracted_keywords}
+          primaryAction={{ label: 'Tiếp tục → Memory Scan', to: `/preparations/${data.preparation_id}/memory-scan` }}
+          secondaryAction={{ label: 'Dashboard', to: '/' }}
+        />
       </div>
     )
   }
@@ -196,10 +158,10 @@ export function NewJourneyPage() {
               </div>
             )}
 
-            {error && (
+            {Boolean(error) && (
               <p className="text-sm text-destructive">
-                {'status' in error && error.status === 400
-                  ? (error.data as { detail?: string })?.detail ?? 'Invalid input'
+                {typeof error === 'object' && error !== null && 'status' in error && (error as { status: number }).status === 400
+                  ? (error as { data?: { detail?: string } }).data?.detail ?? 'Invalid input'
                   : 'Something went wrong. Please try again.'}
               </p>
             )}

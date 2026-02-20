@@ -1,4 +1,5 @@
 import { baseApi } from '../baseApi'
+import type { JDAnalysisResult } from './analysisApi'
 
 export interface PreparationItem {
   id: number
@@ -14,6 +15,12 @@ export interface MemoryScanQuestion {
   question_text: string
   question_type: string
   options: Record<string, unknown>
+}
+
+/** Câu hỏi giả lập phỏng vấn (self-check): chỉ nội dung, không trắc nghiệm/chấm điểm */
+export interface SelfCheckQuestion {
+  id: string
+  question_text: string
 }
 
 export interface MemoryScanSubmitRequest {
@@ -65,6 +72,10 @@ export const preparationApi = baseApi.injectEndpoints({
       query: (id) => `preparations/${id}`,
       providesTags: (result, err, id) => [{ type: 'Interview', id: `prep-${id}` }],
     }),
+    getPreparationJdAnalysis: builder.query<JDAnalysisResult, number>({
+      query: (preparationId) => `preparations/${preparationId}/jd-analysis`,
+      providesTags: (result, err, id) => [{ type: 'Interview', id: `prep-${id}` }],
+    }),
     getMemoryScanQuestions: builder.query<
       MemoryScanQuestion[],
       { preparationId: number; source?: 'warehouse' | 'ai' | 'auto' }
@@ -98,7 +109,7 @@ export const preparationApi = baseApi.injectEndpoints({
         { type: 'Interview', id: `prep-${preparationId}` },
       ],
     }),
-    getSelfCheckQuestions: builder.query<MemoryScanQuestion[], number>({
+    getSelfCheckQuestions: builder.query<SelfCheckQuestion[], number>({
       query: (preparationId) => `preparations/${preparationId}/self-check-questions`,
       providesTags: (result, err, preparationId) => [
         { type: 'Interview', id: `prep-${preparationId}` },
@@ -110,6 +121,7 @@ export const preparationApi = baseApi.injectEndpoints({
 export const {
   useListPreparationsQuery,
   useGetPreparationQuery,
+  useGetPreparationJdAnalysisQuery,
   useGetMemoryScanQuestionsQuery,
   useSubmitMemoryScanMutation,
   useGetPreparationRoadmapQuery,

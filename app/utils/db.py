@@ -113,6 +113,8 @@ class Database:
         from app.models.example import ExampleModel  # noqa: F401
         from app.modules.account.models import User  # noqa: F401
         from app.modules.analysis.models import JDAnalysis  # noqa: F401
+        from app.modules.company.models import Company  # noqa: F401
+        from app.modules.contribution.models import Contribution  # noqa: F401
         from app.modules.questions.models import (  # noqa: F401
             AssessmentSession,
             UserQuestionAnswer,
@@ -186,6 +188,51 @@ class Database:
                 END IF;
             EXCEPTION WHEN OTHERS THEN
                 NULL;
+            END $$;
+        """))
+        # Add moderation columns to contributions if missing
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'contributions' AND column_name = 'status'
+                ) THEN
+                    ALTER TABLE contributions ADD COLUMN status VARCHAR(20) DEFAULT 'pending';
+                END IF;
+            END $$;
+        """))
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'contributions' AND column_name = 'approved_by_admin_id'
+                ) THEN
+                    ALTER TABLE contributions ADD COLUMN approved_by_admin_id INTEGER REFERENCES users(id);
+                END IF;
+            END $$;
+        """))
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'contributions' AND column_name = 'approved_at'
+                ) THEN
+                    ALTER TABLE contributions ADD COLUMN approved_at TIMESTAMP;
+                END IF;
+            END $$;
+        """))
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'contributions' AND column_name = 'job_position'
+                ) THEN
+                    ALTER TABLE contributions ADD COLUMN job_position VARCHAR(255);
+                END IF;
             END $$;
         """))
 

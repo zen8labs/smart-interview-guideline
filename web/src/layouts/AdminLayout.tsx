@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const navItems = [
   { path: '/admin', label: 'Dashboard', match: (p: string) => p === '/admin' || p === '/admin/' || p.startsWith('/admin/users') },
+  { path: '/admin/contributions', label: 'Contributions', match: (p: string) => p.startsWith('/admin/contributions') },
   { path: '/admin/questions', label: 'Questions', match: (p: string) => p.startsWith('/admin/questions') },
   { path: '/admin/candidates', label: 'Candidates', match: (p: string) => p.startsWith('/admin/candidates') },
   { path: '/admin/settings', label: 'Settings', match: (p: string) => p.startsWith('/admin/settings') },
@@ -32,7 +33,7 @@ export function AdminLayout() {
     }
   })()
 
-  const displayName = adminUser ?? 'Admin'
+  const displayName = adminUser?.email ?? 'Admin'
   const initials = displayName.slice(0, 2).toUpperCase()
 
   return (

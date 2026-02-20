@@ -11,6 +11,7 @@ from sqlmodel import col, select
 
 from app.config import settings
 from app.modules.analysis.models import JDAnalysis
+from app.modules.analysis.services import normalize_extracted_keyword_names
 from app.modules.preparation.models import Preparation, PreparationStatus
 from app.modules.questions.models import (
     ContentStatus,
@@ -38,10 +39,12 @@ async def analyze_knowledge_gaps(
     if not settings.openai.api_key:
         return []
 
-    skills = list(jd_analysis.extracted_keywords.get("skills") or [])
-    domains = list(jd_analysis.extracted_keywords.get("domains") or [])
-    keywords = list(jd_analysis.extracted_keywords.get("keywords") or [])
+    kw = jd_analysis.extracted_keywords or {}
+    skills, domains, keywords = normalize_extracted_keyword_names(kw)
+    requirements_summary = kw.get("requirements_summary") or ""
     jd_summary = f"Skills: {skills}. Domains: {domains}. Keywords: {keywords}."
+    if requirements_summary:
+        jd_summary += f" Key requirements: {requirements_summary}"
     profile = f"Role: {user_role or 'not set'}. Experience: {user_experience_years or 0} years."
 
     # Build Q&A với kết quả đúng/sai
@@ -195,9 +198,7 @@ async def generate_questions_with_ai(
     if not settings.openai.api_key:
         return []
 
-    skills = jd_analysis.extracted_keywords.get("skills") or []
-    domains = jd_analysis.extracted_keywords.get("domains") or []
-    keywords = jd_analysis.extracted_keywords.get("keywords") or []
+    skills, domains, keywords = normalize_extracted_keyword_names(jd_analysis.extracted_keywords or {})
     context = f"JD skills: {skills}. Domains: {domains}. Keywords: {keywords}."
     if user_role:
         context += f" User role: {user_role}."
@@ -257,6 +258,75 @@ Example: [{{"question_text": "What is REST?", "question_type": "multiple_choice"
         return []
 
 
+async def generate_self_check_questions(
+    *,
+    jd_analysis: JDAnalysis,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    """
+    Tạo bộ câu hỏi giả lập phỏng vấn bằng LLM: câu hỏi mở có thể xuất hiện trong buổi phỏng vấn.
+    Không phải trắc nghiệm, không chấm điểm — chỉ để user tự luyện trả lời.
+    """
+    if not settings.openai.api_key:
+        return []
+
+    skills, domains, keywords = normalize_extracted_keyword_names(jd_analysis.extracted_keywords or {})
+    kw = jd_analysis.extracted_keywords or {}
+    requirements_summary = kw.get("requirements_summary") or ""
+    context = f"Skills: {skills}. Domains: {domains}. Keywords: {keywords}."
+    if requirements_summary:
+        context += f" Key requirements: {requirements_summary}"
+
+    client = AsyncOpenAI(api_key=settings.openai.api_key)
+    prompt = f"""You are an expert interviewer. Based on this job description context, generate {limit} realistic interview questions that could be asked in a real interview for this role.
+
+Context: {context}
+
+Requirements:
+- Questions must be OPEN-ENDED (no multiple choice). Examples: "Tell me about a time when...", "How would you approach...", "What is your experience with...", "Explain...", "Describe..."
+- Mix: technical questions, behavioral/situational, experience-based, and role-specific.
+- Write in the same language as the job description (if Vietnamese JD, write questions in Vietnamese).
+- Return ONLY a valid JSON array of objects, each with a single key "question_text" (string).
+
+Example: [{{"question_text": "Kể về một lần bạn xử lý conflict trong team?"}}, {{"question_text": "How do you approach debugging a production issue?"}}]
+"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.6,
+            max_tokens=settings.openai.max_tokens,
+        )
+        content = response.choices[0].message.content
+        if not content:
+            return []
+        text_in = content.strip()
+        if text_in.startswith("```"):
+            lines = text_in.split("\n")
+            text_in = "\n".join(
+                line for line in lines
+                if not (line.strip().startswith("```") and len(line.strip()) <= 5)
+            ).strip()
+            if text_in.startswith("```"):
+                text_in = text_in.split("\n", 1)[-1]
+        data = json.loads(text_in)
+        if not isinstance(data, list):
+            return []
+        out = []
+        for i, item in enumerate(data[:limit]):
+            if not isinstance(item, dict):
+                continue
+            q_text = (item.get("question_text") or item.get("question") or "").strip()
+            if not q_text:
+                continue
+            out.append({"id": str(i), "question_text": q_text})
+        return out
+    except Exception as e:
+        logger.exception("Self-check question generation failed: %s", e)
+        return []
+
+
 def _score_memory_scan_answers(
     questions: list[dict[str, Any]],
     answers: list[dict[str, Any]],
@@ -299,10 +369,12 @@ async def create_roadmap_after_memory_scan(
     1) LLM phân tích profile + JD + kết quả scan → danh sách vùng kiến thức cần cải thiện.
     2) Với mỗi vùng, gọi LLM tạo rich markdown content (roadmap item).
     """
-    skills = list(jd_analysis.extracted_keywords.get("skills") or [])
-    domains = list(jd_analysis.extracted_keywords.get("domains") or [])
-    keywords = list(jd_analysis.extracted_keywords.get("keywords") or [])
+    skills, domains, keywords = normalize_extracted_keyword_names(jd_analysis.extracted_keywords or {})
+    kw = jd_analysis.extracted_keywords or {}
+    requirements_summary = kw.get("requirements_summary") or ""
     jd_skills_summary = f"Skills: {skills}. Domains: {domains}. Keywords: {keywords}."
+    if requirements_summary:
+        jd_skills_summary += f" Key requirements: {requirements_summary}"
 
     knowledge_areas: list[str] = []
     if settings.openai.api_key:

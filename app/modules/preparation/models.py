@@ -69,6 +69,13 @@ class MemoryScanQuestionDisplay(BaseModel):
     options: dict[str, Any]
 
 
+class SelfCheckQuestionDisplay(BaseModel):
+    """Câu hỏi giả lập phỏng vấn (self-check): chỉ nội dung câu hỏi, không có lựa chọn/chấm điểm."""
+
+    id: str
+    question_text: str
+
+
 class MemoryScanSubmitRequest(BaseModel):
     """Request nộp đáp án memory scan."""
 

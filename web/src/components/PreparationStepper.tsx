@@ -3,7 +3,7 @@ import { FileText, ListTodo, MessageCircleQuestion, ClipboardList } from 'lucide
 import { cn } from '@/lib/utils'
 
 const STEPS = [
-  { key: 'jd', label: 'Nhập JD', path: null, icon: FileText },
+  { key: 'jd', label: 'Nhập JD', path: 'jd', icon: FileText },
   { key: 'memory-scan', label: 'Memory Scan', path: 'memory-scan', icon: ClipboardList },
   { key: 'roadmap', label: 'Roadmap', path: 'roadmap', icon: ListTodo },
   { key: 'self-check', label: 'Self-check', path: 'self-check', icon: MessageCircleQuestion },

@@ -48,6 +48,30 @@ export interface BanUserRequest {
   reason?: string
 }
 
+export type AdminContributionStatus = 'pending' | 'approved' | 'rejected'
+
+export interface AdminContribution {
+  id: number
+  user_id: number
+  company_id: number
+  company_name?: string
+  user_email?: string
+  preparation_id: number | null
+  job_position: string | null
+  jd_content: string
+  question_info: Record<string, unknown>[]
+  candidate_responses: string | null
+  status: AdminContributionStatus
+  approved_at: string | null
+  created_at: string
+}
+
+export interface AdminContributionsParams {
+  status?: AdminContributionStatus
+  page?: number
+  page_size?: number
+}
+
 /**
  * Admin API endpoints
  */
@@ -101,6 +125,51 @@ export const adminApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, userId) => [{ type: 'User', id: userId }, 'User'],
     }),
+
+    // List contributions (admin moderation)
+    listAdminContributions: builder.query<AdminContribution[], AdminContributionsParams | void>({
+      query: (params = {}) => {
+        const searchParams = new URLSearchParams()
+        if (params?.status) searchParams.append('status', params.status)
+        if (params?.page) searchParams.append('page', params.page.toString())
+        if (params?.page_size) searchParams.append('page_size', params.page_size.toString())
+        return `/admin/contributions?${searchParams.toString()}`
+      },
+      providesTags: (result) =>
+        result
+          ? [...result.map((c) => ({ type: 'AdminContribution' as const, id: c.id })), 'AdminContribution']
+          : ['AdminContribution'],
+    }),
+
+    getAdminContributionsCount: builder.query<{ total: number }, { status?: AdminContributionStatus } | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams()
+        if (params?.status) searchParams.append('status', params.status)
+        return `/admin/contributions/count?${searchParams.toString()}`
+      },
+      providesTags: ['AdminContribution'],
+    }),
+
+    getAdminContribution: builder.query<AdminContribution, number>({
+      query: (id) => `/admin/contributions/${id}`,
+      providesTags: (_result, _err, id) => [{ type: 'AdminContribution', id }],
+    }),
+
+    approveContribution: builder.mutation<AdminContribution, number>({
+      query: (id) => ({
+        url: `/admin/contributions/${id}/approve`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: (_result, _err, id) => [{ type: 'AdminContribution', id }, 'AdminContribution'],
+    }),
+
+    rejectContribution: builder.mutation<AdminContribution, number>({
+      query: (id) => ({
+        url: `/admin/contributions/${id}/reject`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: (_result, _err, id) => [{ type: 'AdminContribution', id }, 'AdminContribution'],
+    }),
   }),
 })
 
@@ -112,4 +181,9 @@ export const {
   useLazyGetUserDetailQuery,
   useBanUserMutation,
   useUnbanUserMutation,
+  useListAdminContributionsQuery,
+  useGetAdminContributionsCountQuery,
+  useGetAdminContributionQuery,
+  useApproveContributionMutation,
+  useRejectContributionMutation,
 } = adminApi

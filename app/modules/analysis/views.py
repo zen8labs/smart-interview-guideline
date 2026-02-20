@@ -7,12 +7,19 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
-from app.modules.analysis.models import JDAnalysis, AnalysisSubmitResponse
+from app.modules.analysis.models import (
+    JDAnalysis,
+    AnalysisSubmitResponse,
+    ExtractTextResponse,
+)
 from app.modules.preparation.models import Preparation, PreparationStatus
 from app.modules.analysis.services import (
     ALLOWED_JD_EXTENSIONS,
+    LINKEDIN_JD_URL_PATTERN,
+    extract_jd_content_with_llm,
     extract_keywords_with_llm,
     extract_text_from_file,
+    fetch_text_from_url,
 )
 from app.utils.auth import CurrentUser
 from app.utils.db import DBSession
@@ -25,6 +32,58 @@ def _ensure_jd_dir() -> Path:
     jd_path = Path(settings.storage.jd_upload_path)
     jd_path.mkdir(parents=True, exist_ok=True)
     return jd_path
+
+
+@router.post("/extract-text", response_model=ExtractTextResponse)
+async def extract_jd_text(
+    current_user: CurrentUser,
+    text: str | None = Form(None),
+    file: UploadFile | None = File(None),
+    linkedin_url: str | None = Form(None),
+):
+    """
+    Chỉ trích xuất nội dung JD (text) từ: dán text, file (PDF/DOCX/TXT), hoặc LinkedIn job URL.
+    Không tạo preparation hay lưu analysis. Dùng cho form đóng góp (contribution).
+    """
+    raw_text = ""
+
+    if linkedin_url and linkedin_url.strip():
+        if not LINKEDIN_JD_URL_PATTERN.match(linkedin_url.strip()):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid LinkedIn job URL. Example: https://www.linkedin.com/jobs/view/4375191000/",
+            )
+        raw_text = await fetch_text_from_url(linkedin_url.strip())
+        if not raw_text or len(raw_text) < 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not extract enough text from the URL (page may require login or block access). Try pasting the JD text instead.",
+            )
+        raw_text = await extract_jd_content_with_llm(raw_text, source="linkedin")
+    elif file and file.filename:
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ALLOWED_JD_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Allowed file types: {', '.join(ALLOWED_JD_EXTENSIONS)}",
+            )
+        content = await file.read()
+        raw_text = extract_text_from_file(content=content, filename=file.filename)
+        if not raw_text.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not extract text from the uploaded file",
+            )
+        raw_text = await extract_jd_content_with_llm(raw_text, source="file")
+    elif text and text.strip():
+        raw_text = text.strip()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide 'text', 'file', or 'linkedin_url' (job description content)",
+        )
+
+    return ExtractTextResponse(raw_text=raw_text)
 
 
 @router.post("/submit")
@@ -43,10 +102,6 @@ async def submit_jd_analysis(
     file_path = None
 
     if linkedin_url and linkedin_url.strip():
-        from app.modules.analysis.services import (
-            LINKEDIN_JD_URL_PATTERN,
-            fetch_text_from_url,
-        )
         if not LINKEDIN_JD_URL_PATTERN.match(linkedin_url.strip()):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

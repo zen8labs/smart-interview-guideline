@@ -1,4 +1,4 @@
-"""Admin API endpoints for user management."""
+"""Admin API endpoints for user management and contribution moderation."""
 
 from datetime import datetime
 
@@ -12,6 +12,13 @@ from app.modules.admin.models import (
     UserDetailResponse,
     UserListItem,
     UserListResponse,
+)
+from app.modules.company.models import Company
+from app.modules.contribution.models import (
+    Contribution,
+    ContributionAdminListResponse,
+    ContributionResponse,
+    ContributionStatus,
 )
 from app.utils.auth import (
     AdminUser,
@@ -248,3 +255,128 @@ async def unban_user(
     await session.refresh(user)
 
     return UserDetailResponse.model_validate(user)
+
+
+# ----- Contribution moderation -----
+
+
+@router.get("/contributions", response_model=list[ContributionAdminListResponse])
+async def admin_list_contributions(
+    admin: AdminUser,
+    session: DBSession,
+    status_filter: str | None = Query(None, alias="status", description="pending | approved | rejected"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """Danh sách đóng góp (admin) với lọc theo trạng thái và phân trang."""
+    stmt = select(Contribution).order_by(Contribution.created_at.desc())
+    if status_filter and status_filter in (
+        ContributionStatus.PENDING,
+        ContributionStatus.APPROVED,
+        ContributionStatus.REJECTED,
+    ):
+        stmt = stmt.where(Contribution.status == status_filter)
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+    result = await session.execute(stmt)
+    items = result.scalars().all()
+
+    out = []
+    for c in items:
+        company = await session.get(Company, c.company_id)
+        user = await session.get(User, c.user_id)
+        out.append(
+            ContributionAdminListResponse(
+                **ContributionResponse.model_validate(c).model_dump(),
+                company_name=company.name if company else "",
+                user_email=user.email if user else "",
+            )
+        )
+    return out
+
+
+@router.get("/contributions/count")
+async def admin_count_contributions(
+    admin: AdminUser,
+    session: DBSession,
+    status_filter: str | None = Query(None, alias="status"),
+):
+    """Tổng số đóng góp (để phân trang), có thể lọc theo status."""
+    stmt = select(func.count()).select_from(Contribution)
+    if status_filter and status_filter in (
+        ContributionStatus.PENDING,
+        ContributionStatus.APPROVED,
+        ContributionStatus.REJECTED,
+    ):
+        stmt = stmt.where(Contribution.status == status_filter)
+    result = await session.execute(stmt)
+    total = result.scalar_one()
+    return {"total": total}
+
+
+@router.get("/contributions/{contribution_id}", response_model=ContributionAdminListResponse)
+async def admin_get_contribution(
+    contribution_id: int,
+    admin: AdminUser,
+    session: DBSession,
+):
+    """Chi tiết một đóng góp (admin)."""
+    contribution = await session.get(Contribution, contribution_id)
+    if not contribution:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contribution not found")
+    company = await session.get(Company, contribution.company_id)
+    user = await session.get(User, contribution.user_id)
+    return ContributionAdminListResponse(
+        **ContributionResponse.model_validate(contribution).model_dump(),
+        company_name=company.name if company else "",
+        user_email=user.email if user else "",
+    )
+
+
+@router.patch("/contributions/{contribution_id}/approve", response_model=ContributionResponse)
+async def admin_approve_contribution(
+    contribution_id: int,
+    admin: AdminUser,
+    session: DBSession,
+):
+    """Duyệt đóng góp."""
+    contribution = await session.get(Contribution, contribution_id)
+    if not contribution:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contribution not found")
+    if contribution.status != ContributionStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contribution is not pending",
+        )
+    contribution.status = ContributionStatus.APPROVED
+    contribution.approved_by_admin_id = admin.id
+    contribution.approved_at = datetime.utcnow()
+    contribution.updated_at = datetime.utcnow()
+    session.add(contribution)
+    await session.commit()
+    await session.refresh(contribution)
+    return ContributionResponse.model_validate(contribution)
+
+
+@router.patch("/contributions/{contribution_id}/reject", response_model=ContributionResponse)
+async def admin_reject_contribution(
+    contribution_id: int,
+    admin: AdminUser,
+    session: DBSession,
+):
+    """Từ chối đóng góp."""
+    contribution = await session.get(Contribution, contribution_id)
+    if not contribution:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contribution not found")
+    if contribution.status != ContributionStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contribution is not pending",
+        )
+    contribution.status = ContributionStatus.REJECTED
+    contribution.approved_by_admin_id = admin.id
+    contribution.approved_at = datetime.utcnow()
+    contribution.updated_at = datetime.utcnow()
+    session.add(contribution)
+    await session.commit()
+    await session.refresh(contribution)
+    return ContributionResponse.model_validate(contribution)

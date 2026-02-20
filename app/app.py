@@ -11,6 +11,8 @@ from app.models.example import ExampleModel
 from app.modules.account import profile_router, router as account_router
 from app.modules.admin import router as admin_router
 from app.modules.analysis import router as analysis_router
+from app.modules.company import router as company_router
+from app.modules.contribution import router as contribution_router
 from app.modules.preparation import router as preparation_router
 from app.modules.questions import router as questions_router
 from app.modules.questions.user_views import router as user_questions_router
@@ -86,6 +88,8 @@ def create_app():
     app.include_router(profile_router)
     app.include_router(admin_router)
     app.include_router(analysis_router)
+    app.include_router(company_router)
+    app.include_router(contribution_router)
     app.include_router(preparation_router)
     app.include_router(questions_router)
     app.include_router(user_questions_router)

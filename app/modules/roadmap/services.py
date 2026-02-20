@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from app.modules.analysis.models import JDAnalysis
+from app.modules.analysis.services import normalize_extracted_keyword_names
 from app.modules.roadmap.models import DailyTask, Roadmap
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -26,9 +27,7 @@ async def create_roadmap_from_analysis(
     session.add(roadmap)
     await session.flush()
 
-    skills = jd_analysis.extracted_keywords.get("skills") or []
-    domains = jd_analysis.extracted_keywords.get("domains") or []
-    keywords = jd_analysis.extracted_keywords.get("keywords") or []
+    skills, domains, keywords = normalize_extracted_keyword_names(jd_analysis.extracted_keywords or {})
 
     # Build list of topics (skills first, then domains, then keywords; max 10)
     topics = list(skills)[:5] + list(domains)[:3] + list(keywords)[:2]

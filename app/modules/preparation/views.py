@@ -7,17 +7,20 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
 from app.modules.account.models import User
-from app.modules.analysis.models import JDAnalysis
+from app.modules.analysis.models import JDAnalysis, AnalysisSubmitResponse
+from app.modules.analysis.services import normalize_extracted_keyword_names
 from app.modules.preparation.models import (
     MemoryScanQuestionDisplay,
     MemoryScanSubmitRequest,
     Preparation,
     PreparationResponse,
     PreparationStatus,
+    SelfCheckQuestionDisplay,
 )
 from app.modules.preparation.services import (
     create_roadmap_after_memory_scan,
     generate_questions_with_ai,
+    generate_self_check_questions,
     get_questions_from_warehouse,
     _score_memory_scan_answers,
 )
@@ -45,6 +48,28 @@ def _questions_for_display(questions: list[dict]) -> list[MemoryScanQuestionDisp
             )
         )
     return out
+
+
+@router.get("/{preparation_id}/jd-analysis", response_model=AnalysisSubmitResponse)
+async def get_preparation_jd_analysis(
+    preparation_id: int,
+    session: DBSession,
+    current_user: CurrentUser,
+):
+    """Xem lại kết quả phân tích JD của preparation (bước 1)."""
+    prep = await session.get(Preparation, preparation_id)
+    if not prep or prep.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preparation not found")
+    jd = await session.get(JDAnalysis, prep.jd_analysis_id)
+    if not jd:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="JD analysis not found")
+    return AnalysisSubmitResponse(
+        id=jd.id,
+        raw_text=jd.raw_text,
+        extracted_keywords=jd.extracted_keywords or {},
+        created_at=jd.created_at,
+        preparation_id=prep.id,
+    )
 
 
 @router.get("/{preparation_id}", response_model=PreparationResponse)
@@ -81,8 +106,8 @@ async def get_memory_scan_questions(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="JD analysis not found")
 
     keywords = jd.extracted_keywords or {}
-    skills = [str(s) for s in keywords.get("skills") or []]
-    tags = [str(t) for t in keywords.get("keywords") or []] + skills
+    skills, _, keywords_list = normalize_extracted_keyword_names(keywords)
+    tags = list(keywords_list) + list(skills)
 
     if prep.memory_scan_questions:
         return _questions_for_display(prep.memory_scan_questions)
@@ -232,29 +257,25 @@ async def get_preparation_roadmap(
     }
 
 
-@router.get("/{preparation_id}/self-check-questions")
+@router.get("/{preparation_id}/self-check-questions", response_model=list[SelfCheckQuestionDisplay])
 async def get_self_check_questions(
     preparation_id: int,
     session: DBSession,
     current_user: CurrentUser,
 ):
     """
-    Bước 4: Bộ câu hỏi phỏng vấn để user self-check lại kiến thức.
-    Lấy từ warehouse theo skills/topics của roadmap hoặc JD.
+    Bước 4: Câu hỏi giả lập phỏng vấn (LLM). Không phải trắc nghiệm/chấm điểm — để user tự luyện trả lời.
     """
     prep = await session.get(Preparation, preparation_id)
     if not prep or prep.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preparation not found")
 
     jd = await session.get(JDAnalysis, prep.jd_analysis_id)
-    keywords = (jd.extracted_keywords or {}) if jd else {}
-    skills = [str(s) for s in keywords.get("skills") or []]
-    tags = [str(t) for t in keywords.get("keywords") or []] + skills
+    if not jd:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="JD analysis not found")
 
-    questions = await get_questions_from_warehouse(
-        session, skills=skills, tags=tags, limit=15
-    )
-    return _questions_for_display(questions)
+    questions = await generate_self_check_questions(jd_analysis=jd, limit=12)
+    return [SelfCheckQuestionDisplay(id=q["id"], question_text=q["question_text"]) for q in questions]
 
 
 @router.get("")

@@ -33,3 +33,9 @@ class AnalysisSubmitResponse(BaseModel):
     preparation_id: int
 
     model_config = {"from_attributes": True}
+
+
+class ExtractTextResponse(BaseModel):
+    """Response when only extracting JD text (no preparation/analysis record)."""
+
+    raw_text: str

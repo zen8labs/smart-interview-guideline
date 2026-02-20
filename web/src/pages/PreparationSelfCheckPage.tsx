@@ -1,33 +1,23 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useGetSelfCheckQuestionsQuery } from '@/store/api/endpoints/preparationApi'
-import { QuestionCard } from '@/components/QuestionCard'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle2, MessageCircleQuestion } from 'lucide-react'
 
 export function PreparationSelfCheckPage() {
   const { preparationId } = useParams<{ preparationId: string }>()
   const id = Number(preparationId)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, string>>({})
 
   const { data: questions = [], isLoading } = useGetSelfCheckQuestionsQuery(id, {
     skip: !id || Number.isNaN(id),
   })
 
   const currentQuestion = questions[currentIndex]
-  const selectedAnswer = currentQuestion
-    ? answers[currentQuestion.id] ?? null
-    : null
   const total = questions.length
-  const answeredCount = Object.keys(answers).length
-  const allAnswered = total > 0 && answeredCount === total
-
-  const handleSelect = useCallback((questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }))
-  }, [])
+  const isLast = total > 0 && currentIndex === total - 1
 
   if (isLoading) {
     return (
@@ -43,7 +33,7 @@ export function PreparationSelfCheckPage() {
       <div className="mx-auto w-full max-w-md">
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            <p>Chưa có câu hỏi self-check. Hoàn thành roadmap trước.</p>
+            <p>Chưa có câu hỏi self-check. Vui lòng thử lại sau.</p>
             <Button asChild variant="outline" className="mt-4">
               <Link to={`/preparations/${id}/roadmap`}>Xem Roadmap</Link>
             </Button>
@@ -53,24 +43,20 @@ export function PreparationSelfCheckPage() {
     )
   }
 
-  const cardQuestion = {
-    id: currentQuestion.id,
-    title: '',
-    content: currentQuestion.question_text,
-    question_type: currentQuestion.question_type,
-    options: currentQuestion.options,
-  }
-
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-          Self-check: câu hỏi phỏng vấn có thể có
+          Self-check: câu hỏi giả lập phỏng vấn
         </h1>
         <span className="text-sm text-muted-foreground">
           Câu {currentIndex + 1} / {total}
         </span>
       </div>
+
+      <p className="text-sm text-muted-foreground">
+        Các câu hỏi có thể xuất hiện trong buổi phỏng vấn. Tự luyện trả lời (nói hoặc viết) để chuẩn bị.
+      </p>
 
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
@@ -79,13 +65,16 @@ export function PreparationSelfCheckPage() {
         />
       </div>
 
-      <div className="min-h-[200px]">
-        <QuestionCard
-          question={cardQuestion}
-          selectedAnswer={selectedAnswer}
-          onSelectAnswer={(value) => handleSelect(currentQuestion.id, value)}
-        />
-      </div>
+      <Card className="min-h-[180px]">
+        <CardContent className="flex flex-col gap-3 pt-6">
+          <div className="flex items-start gap-2">
+            <MessageCircleQuestion className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+            <p className="text-base leading-relaxed">
+              {currentQuestion.question_text}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap justify-between gap-2">
         <Button
@@ -97,7 +86,7 @@ export function PreparationSelfCheckPage() {
           <ChevronLeft className="size-4" />
           Trước
         </Button>
-        {currentIndex < total - 1 ? (
+        {!isLast ? (
           <Button size="sm" onClick={() => setCurrentIndex((i) => i + 1)}>
             Sau <ChevronRight className="size-4" />
           </Button>
@@ -108,13 +97,23 @@ export function PreparationSelfCheckPage() {
         )}
       </div>
 
-      {currentIndex === total - 1 && allAnswered && (
+      {isLast && (
         <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
           <CardContent className="flex flex-col gap-2 py-4">
             <span className="flex items-center gap-2 text-green-700 dark:text-green-400">
               <CheckCircle2 className="size-5 shrink-0" />
-              Bạn đã xem hết bộ câu self-check.
+              Bạn đã xem hết bộ câu giả lập.
             </span>
+            <p className="text-sm text-muted-foreground">
+              Sau khi phỏng vấn, bạn có thể{' '}
+              <Link
+                to={`/contribute?preparation_id=${id}`}
+                className="font-medium text-primary underline underline-offset-2"
+              >
+                đóng góp thông tin
+              </Link>{' '}
+              (JD, câu hỏi, câu trả lời) để giúp hệ thống tốt hơn.
+            </p>
           </CardContent>
         </Card>
       )}

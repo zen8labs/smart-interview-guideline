@@ -11,16 +11,19 @@ import { NewJourneyPage } from './pages/NewJourneyPage'
 import { AssessmentPage } from './pages/AssessmentPage'
 import { PreparationFlowLayout } from './layouts/PreparationFlowLayout'
 import { PreparationsListPage } from './pages/PreparationsListPage'
+import { PreparationJdAnalysisPage } from './pages/PreparationJdAnalysisPage'
 import { PreparationMemoryScanPage } from './pages/PreparationMemoryScanPage'
 import { PreparationRoadmapPage } from './pages/PreparationRoadmapPage'
 import { PreparationSelfCheckPage } from './pages/PreparationSelfCheckPage'
 import { RoadmapPage } from './pages/RoadmapPage'
+import { ContributePage } from './pages/ContributePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminProtectedRoute } from './components/AdminProtectedRoute'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage'
+import { AdminContributionsPage } from './pages/admin/AdminContributionsPage'
 import QuestionsListPage from './pages/admin/questions/QuestionsListPage'
 import QuestionFormPage from './pages/admin/questions/QuestionFormPage'
 import QuestionDetailPage from './pages/admin/questions/QuestionDetailPage'
@@ -79,7 +82,11 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Navigate to="memory-scan" replace />,
+            element: <Navigate to="jd" replace />,
+          },
+          {
+            path: 'jd',
+            element: <PreparationJdAnalysisPage />,
           },
           {
             path: 'memory-scan',
@@ -98,6 +105,10 @@ export const router = createBrowserRouter([
       {
         path: 'knowledge',
         element: <RoadmapPage />,
+      },
+      {
+        path: 'contribute',
+        element: <ContributePage />,
       },
       {
         path: 'community',
@@ -148,6 +159,10 @@ export const router = createBrowserRouter([
       {
         path: 'users/:userId',
         element: <AdminUserDetailPage />,
+      },
+      {
+        path: 'contributions',
+        element: <AdminContributionsPage />,
       },
       {
         path: 'questions',

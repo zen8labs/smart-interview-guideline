@@ -10,6 +10,7 @@ import {
   User,
   ChevronLeft,
   BrainCircuit,
+  Gift,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
   { label: 'Interview Prep', icon: FileText, href: '/preparations' },
   { label: 'Knowledge Base', icon: BookOpen, href: '/knowledge' },
+  { label: 'Đóng góp', icon: Gift, href: '/contribute' },
   { label: 'Community', icon: Users, href: '/community' },
 ]
 
