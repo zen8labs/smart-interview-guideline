@@ -43,6 +43,7 @@ class User(SQLModel, table=True):
     role: str | None = SQLField(default=None, max_length=50)
     experience_years: int | None = SQLField(default=None)
     cv_path: str | None = SQLField(default=None, max_length=500)
+    preferred_language: str | None = SQLField(default="en", max_length=10)
 
     created_at: datetime = SQLField(default_factory=datetime.utcnow)
     updated_at: datetime = SQLField(default_factory=datetime.utcnow)
@@ -104,6 +105,7 @@ class UserResponse(BaseModel):
     role: str | None = None
     experience_years: int | None = None
     cv_filename: str | None = None
+    preferred_language: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -120,6 +122,7 @@ class ProfileUpdate(BaseModel):
     education_summary: str | None = None
     role: UserRole | None = None
     experience_years: int | None = Field(default=None, ge=0, le=50)
+    preferred_language: str | None = Field(default=None, max_length=10)
 
 
 class Token(BaseModel):

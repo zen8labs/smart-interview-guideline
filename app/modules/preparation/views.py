@@ -22,6 +22,8 @@ from app.modules.preparation.services import (
     generate_questions_with_ai,
     generate_self_check_questions,
     get_questions_from_warehouse,
+    get_knowledge_areas_for_assessment,
+    _knowledge_level_from_percent,
     _score_memory_scan_answers,
 )
 from app.modules.questions.models import AssessmentSession, UserQuestionAnswer
@@ -122,6 +124,7 @@ async def get_memory_scan_questions(
             jd_analysis=jd,
             user_role=current_user.role,
             limit=8,
+            preferred_language=current_user.preferred_language,
         )
     else:
         questions = await get_questions_from_warehouse(
@@ -133,14 +136,15 @@ async def get_memory_scan_questions(
                 jd_analysis=jd,
                 user_role=current_user.role,
                 limit=8,
+                preferred_language=current_user.preferred_language,
             )
-
     if not questions:
         questions = await generate_questions_with_ai(
             session,
             jd_analysis=jd,
             user_role=current_user.role,
             limit=8,
+            preferred_language=current_user.preferred_language,
         )
 
     prep.memory_scan_questions = questions
@@ -151,6 +155,34 @@ async def get_memory_scan_questions(
     return _questions_for_display(questions)
 
 
+def _compute_knowledge_assessment(
+    knowledge_areas: list[str],
+    result_flags: list[bool],
+) -> list[dict]:
+    """Compute per-area level (5-scale) from round-robin question assignment."""
+    if not knowledge_areas or not result_flags:
+        return []
+    n_areas = len(knowledge_areas)
+    area_correct: list[int] = [0] * n_areas
+    area_total: list[int] = [0] * n_areas
+    for i, is_correct in enumerate(result_flags):
+        idx = i % n_areas
+        area_total[idx] += 1
+        if is_correct:
+            area_correct[idx] += 1
+    return [
+        {
+            "knowledge_area": area_name,
+            "level": _knowledge_level_from_percent(
+                (100.0 * area_correct[idx] / area_total[idx]) if area_total[idx] else 0.0
+            ),
+            "correct_count": area_correct[idx],
+            "total_count": area_total[idx],
+        }
+        for idx, area_name in enumerate(knowledge_areas)
+    ]
+
+
 @router.post("/{preparation_id}/memory-scan/submit")
 async def submit_memory_scan(
     preparation_id: int,
@@ -159,8 +191,8 @@ async def submit_memory_scan(
     current_user: CurrentUser,
 ):
     """
-    Bước 2 (kết): Nộp đáp án memory scan.
-    Sau khi chấm điểm, tạo roadmap (bước 3) và gắn với preparation.
+    Nộp đáp án memory scan: chấm điểm, lưu kết quả. User xem kết quả rồi quyết định
+    "Tiếp tục tạo roadmap" hoặc "Làm lại scan". Không tự tạo roadmap.
     """
     prep = await session.get(Preparation, preparation_id)
     if not prep or prep.user_id != current_user.id:
@@ -187,7 +219,6 @@ async def submit_memory_scan(
     await session.flush()
 
     for i, ans in enumerate(body.answers):
-        qid = str(ans.get("question_id") or ans.get("id", ""))
         is_correct = result_flags[i] if i < len(result_flags) else False
         answer_row = UserQuestionAnswer(
             session_id=assessment.id,
@@ -197,23 +228,27 @@ async def submit_memory_scan(
         )
         session.add(answer_row)
 
+    knowledge_assessment: list[dict] = []
     jd = await session.get(JDAnalysis, prep.jd_analysis_id)
     if jd:
-        roadmap = await create_roadmap_after_memory_scan(
-            session,
-            preparation_id=preparation_id,
-            user_id=current_user.id,
+        knowledge_areas = await get_knowledge_areas_for_assessment(
             jd_analysis=jd,
             memory_scan_questions=prep.memory_scan_questions,
             answer_results=result_flags,
             user_role=current_user.role,
             user_experience_years=current_user.experience_years,
+            preferred_language=current_user.preferred_language,
         )
-        prep.roadmap_id = roadmap.id
-        prep.status = PreparationStatus.ROADMAP_READY
-    else:
-        prep.status = PreparationStatus.MEMORY_SCAN_DONE
+        knowledge_assessment = _compute_knowledge_assessment(knowledge_areas, result_flags)
 
+    prep.status = PreparationStatus.MEMORY_SCAN_DONE
+    prep.last_memory_scan_result = {
+        "score_percent": score_percent,
+        "correct_count": correct_count,
+        "total_questions": total,
+        "knowledge_assessment": knowledge_assessment,
+        "session_id": assessment.id,
+    }
     prep.updated_at = datetime.utcnow()
     session.add(prep)
     await session.commit()
@@ -224,8 +259,101 @@ async def submit_memory_scan(
         "total_questions": total,
         "correct_count": correct_count,
         "preparation_id": preparation_id,
-        "roadmap_ready": prep.roadmap_id is not None,
+        "roadmap_ready": False,
+        "knowledge_assessment": knowledge_assessment,
     }
+
+
+@router.post("/{preparation_id}/create-roadmap")
+async def create_roadmap(
+    preparation_id: int,
+    session: DBSession,
+    current_user: CurrentUser,
+):
+    """
+    Tạo roadmap từ kết quả memory scan lần cuối (user bấm "Tiếp tục tạo roadmap").
+    """
+    prep = await session.get(Preparation, preparation_id)
+    if not prep or prep.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preparation not found")
+    if not prep.memory_scan_questions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No memory scan data. Complete memory scan first.",
+        )
+    if prep.roadmap_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Roadmap already created for this preparation.",
+        )
+
+    # Lấy session memory scan mới nhất và đáp án
+    stmt = (
+        select(AssessmentSession)
+        .where(AssessmentSession.preparation_id == preparation_id)
+        .where(AssessmentSession.session_type == "memory_scan")
+        .order_by(AssessmentSession.created_at.desc())
+        .limit(1)
+    )
+    result = await session.exec(stmt)
+    last_session = result.first()
+    if not last_session:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No memory scan session found.",
+        )
+
+    ans_stmt = (
+        select(UserQuestionAnswer)
+        .where(UserQuestionAnswer.session_id == last_session.id)
+        .order_by(UserQuestionAnswer.id)
+    )
+    ans_result = await session.exec(ans_stmt)
+    answers = list(ans_result.all())
+    result_flags = [a.is_correct for a in answers]
+
+    jd = await session.get(JDAnalysis, prep.jd_analysis_id)
+    if not jd:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="JD analysis not found")
+
+    roadmap, _ = await create_roadmap_after_memory_scan(
+        session,
+        preparation_id=preparation_id,
+        user_id=current_user.id,
+        jd_analysis=jd,
+        memory_scan_questions=prep.memory_scan_questions,
+        answer_results=result_flags,
+        user_role=current_user.role,
+        user_experience_years=current_user.experience_years,
+        preferred_language=current_user.preferred_language,
+    )
+    prep.roadmap_id = roadmap.id
+    prep.status = PreparationStatus.ROADMAP_READY
+    prep.updated_at = datetime.utcnow()
+    session.add(prep)
+    await session.commit()
+
+    return {"roadmap_id": roadmap.id, "preparation_id": preparation_id}
+
+
+@router.post("/{preparation_id}/memory-scan/reset")
+async def reset_memory_scan(
+    preparation_id: int,
+    session: DBSession,
+    current_user: CurrentUser,
+):
+    """
+    Xóa kết quả memory scan lần cuối để user có thể "Làm lại scan".
+    """
+    prep = await session.get(Preparation, preparation_id)
+    if not prep or prep.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preparation not found")
+
+    prep.last_memory_scan_result = None
+    prep.updated_at = datetime.utcnow()
+    session.add(prep)
+    await session.commit()
+    return {"ok": True}
 
 
 @router.get("/{preparation_id}/roadmap")
@@ -274,7 +402,11 @@ async def get_self_check_questions(
     if not jd:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="JD analysis not found")
 
-    questions = await generate_self_check_questions(jd_analysis=jd, limit=12)
+    questions = await generate_self_check_questions(
+        jd_analysis=jd,
+        limit=12,
+        preferred_language=current_user.preferred_language,
+    )
     return [SelfCheckQuestionDisplay(id=q["id"], question_text=q["question_text"]) for q in questions]
 
 

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useGetSelfCheckQuestionsQuery } from '@/store/api/endpoints/preparationApi'
+import { usePreparationFlowProgress } from '@/contexts/PreparationFlowContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +15,12 @@ export function PreparationSelfCheckPage() {
   const { data: questions = [], isLoading } = useGetSelfCheckQuestionsQuery(id, {
     skip: !id || Number.isNaN(id),
   })
+  const { setStepProgress, clearStepProgress } = usePreparationFlowProgress()
+
+  useEffect(() => {
+    if (isLoading) setStepProgress(3, 'Đang tải câu hỏi self-check...')
+    else clearStepProgress()
+  }, [isLoading, setStepProgress, clearStepProgress])
 
   const currentQuestion = questions[currentIndex]
   const total = questions.length
@@ -21,7 +28,7 @@ export function PreparationSelfCheckPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-2xl space-y-4">
+      <div className="mx-auto w-full space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -44,19 +51,12 @@ export function PreparationSelfCheckPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-5">
+    <div className="mx-auto w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-          Self-check: câu hỏi giả lập phỏng vấn
-        </h1>
         <span className="text-sm text-muted-foreground">
           Câu {currentIndex + 1} / {total}
         </span>
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        Các câu hỏi có thể xuất hiện trong buổi phỏng vấn. Tự luyện trả lời (nói hoặc viết) để chuẩn bị.
-      </p>
 
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
@@ -65,8 +65,8 @@ export function PreparationSelfCheckPage() {
         />
       </div>
 
-      <Card className="min-h-[180px]">
-        <CardContent className="flex flex-col gap-3 pt-6">
+      <Card className="min-h-[100px]">
+        <CardContent className="flex flex-col gap-3">
           <div className="flex items-start gap-2">
             <MessageCircleQuestion className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
             <p className="text-base leading-relaxed">
@@ -117,10 +117,6 @@ export function PreparationSelfCheckPage() {
           </CardContent>
         </Card>
       )}
-
-      <Button asChild variant="ghost" size="sm">
-        <Link to="/">Dashboard</Link>
-      </Button>
     </div>
   )
 }

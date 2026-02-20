@@ -4,9 +4,9 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncOpenAI
-
 from app.config import settings
+from app.utils.openai_client import get_openai_client
+from app.utils.llm_language import get_language_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,10 @@ def _normalize_role_from_llm(value: str | None) -> str | None:
     return None
 
 
-async def extract_profile_from_cv_llm(cv_text: str) -> dict[str, Any]:
+async def extract_profile_from_cv_llm(
+    cv_text: str,
+    preferred_language: str | None = None,
+) -> dict[str, Any]:
     """
     Use OpenAI to extract structured profile fields from CV/resume text.
 
@@ -71,8 +74,10 @@ async def extract_profile_from_cv_llm(cv_text: str) -> dict[str, Any]:
     if len(cv_text) > MAX_CV_TEXT_LENGTH:
         truncated += "\n\n[Text truncated for analysis.]"
 
-    client = AsyncOpenAI(api_key=settings.openai.api_key)
-    prompt = """Analyze the following CV/Resume text and extract key information as JSON.
+    lang_instruction = get_language_instruction(preferred_language)
+    client = get_openai_client()
+    prompt = f"""Analyze the following CV/Resume text and extract key information as JSON.
+{lang_instruction} Use that language for role names and any free-text summaries (skills_summary, education_summary).
 Return ONLY a valid JSON object with exactly these keys (use null for missing values):
 - "full_name": string, full name of the candidate
 - "phone": string, phone number if present

@@ -17,11 +17,28 @@ export interface KeywordItem {
   context?: string | null
 }
 
+export interface JdMeta {
+  company_name?: string | null
+  job_title?: string | null
+  location?: string | null
+  posted_date?: string | null
+  application_deadline?: string | null
+  employment_type?: string | null
+}
+
+export interface ProfileFit {
+  level: number // 1-5
+  label?: string | null
+  summary?: string | null
+}
+
 export interface ExtractedKeywords {
   skills?: (string | SkillItem)[]
   domains?: (string | DomainItem)[]
   keywords?: (string | KeywordItem)[]
   requirements_summary?: string | null
+  meta?: JdMeta
+  profile_fit?: ProfileFit | null
 }
 
 export interface JDAnalysisResult {

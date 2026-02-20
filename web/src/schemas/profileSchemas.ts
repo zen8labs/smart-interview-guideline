@@ -44,6 +44,7 @@ export const profileSchema = z.object({
     .int('Must be a whole number')
     .min(0, 'Cannot be negative')
     .max(50, 'Maximum 50 years'),
+  preferred_language: z.string().max(10).optional().or(z.literal('')),
 })
 
 export type ProfileFormData = z.infer<typeof profileSchema>

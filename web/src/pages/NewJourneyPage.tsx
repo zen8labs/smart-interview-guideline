@@ -46,7 +46,7 @@ export function NewJourneyPage() {
 
   if (isSuccess && data) {
     return (
-      <div className="mx-auto w-full max-w-2xl space-y-5">
+      <div className="mx-auto w-full space-y-5">
         <PreparationStepper currentStep={0} preparationId={data.preparation_id} />
         <JdAnalysisResultCard
           preparationId={data.preparation_id}
@@ -59,7 +59,7 @@ export function NewJourneyPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-5">
+    <div className="mx-auto w-full space-y-5">
       <PreparationStepper currentStep={0} preparationId={null} />
       <Card>
         <CardHeader>

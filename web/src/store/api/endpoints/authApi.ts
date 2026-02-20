@@ -24,6 +24,7 @@ export interface User {
   role: string | null;
   experience_years: number | null;
   cv_filename: string | null;
+  preferred_language: string | null;
   created_at: string;
 }
 
@@ -47,6 +48,7 @@ export interface UserInfoResponse {
   role: string | null;
   experience_years: number | null;
   cv_filename: string | null;
+  preferred_language: string | null;
   created_at: string;
 }
 

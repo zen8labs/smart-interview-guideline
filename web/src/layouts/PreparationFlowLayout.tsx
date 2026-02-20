@@ -1,10 +1,12 @@
 import { Outlet, useParams, useLocation } from 'react-router-dom'
 import { PreparationStepper } from '@/components/PreparationStepper'
+import { PreparationFlowProvider, usePreparationFlowProgress } from '@/contexts/PreparationFlowContext'
 
-export function PreparationFlowLayout() {
+function PreparationFlowContent() {
   const { preparationId } = useParams<{ preparationId: string }>()
   const location = useLocation()
   const pathname = location.pathname
+  const { stepInProgress, stepProgressMessage } = usePreparationFlowProgress()
 
   const id = preparationId ? Number(preparationId) : null
   const validId = id != null && !Number.isNaN(id)
@@ -22,8 +24,21 @@ export function PreparationFlowLayout() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
-      <PreparationStepper currentStep={currentStep} preparationId={id} />
+      <PreparationStepper
+        currentStep={currentStep}
+        preparationId={id}
+        stepInProgress={stepInProgress}
+        stepProgressMessage={stepProgressMessage}
+      />
       <Outlet />
     </div>
+  )
+}
+
+export function PreparationFlowLayout() {
+  return (
+    <PreparationFlowProvider>
+      <PreparationFlowContent />
+    </PreparationFlowProvider>
   )
 }

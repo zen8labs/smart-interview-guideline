@@ -233,7 +233,7 @@ export function ContributePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-8">
+    <div className="mx-auto w-full space-y-8">
       <div>
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
           Đóng góp thông tin phỏng vấn

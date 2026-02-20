@@ -12,6 +12,7 @@ export interface UpdateProfileRequest {
   education_summary?: string | null
   role?: string
   experience_years?: number | null
+  preferred_language?: string | null
 }
 
 /**

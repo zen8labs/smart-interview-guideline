@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
@@ -148,7 +149,21 @@ async def submit_jd_analysis(
             detail="Provide 'text', 'file', or 'linkedin_url' (job description content)",
         )
 
-    keywords = await extract_keywords_with_llm(raw_text)
+    user_profile: dict[str, Any] = {}
+    if current_user.role:
+        user_profile["role"] = current_user.role
+    if current_user.experience_years is not None:
+        user_profile["experience_years"] = current_user.experience_years
+    if current_user.skills_summary:
+        user_profile["skills_summary"] = current_user.skills_summary
+    if current_user.current_company:
+        user_profile["current_company"] = current_user.current_company
+
+    keywords = await extract_keywords_with_llm(
+        raw_text,
+        preferred_language=current_user.preferred_language,
+        user_profile=user_profile if user_profile else None,
+    )
 
     analysis = JDAnalysis(
         user_id=current_user.id,

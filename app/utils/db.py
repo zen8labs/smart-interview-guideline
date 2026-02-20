@@ -138,6 +138,7 @@ class Database:
             ("current_company", "VARCHAR(255)"),
             ("skills_summary", "TEXT"),
             ("education_summary", "TEXT"),
+            ("preferred_language", "VARCHAR(10) DEFAULT 'en'"),
         ]:
             await conn.execute(text(f"""
                 DO $$
@@ -232,6 +233,18 @@ class Database:
                     WHERE table_name = 'contributions' AND column_name = 'job_position'
                 ) THEN
                     ALTER TABLE contributions ADD COLUMN job_position VARCHAR(255);
+                END IF;
+            END $$;
+        """))
+        # preparations.last_memory_scan_result (JSON) for viewing last scan result
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'preparations' AND column_name = 'last_memory_scan_result'
+                ) THEN
+                    ALTER TABLE preparations ADD COLUMN last_memory_scan_result JSONB;
                 END IF;
             END $$;
         """))

@@ -8,11 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document as DocxDocument
-from openai import AsyncOpenAI
 from pypdf import PdfReader
 import httpx
 
 from app.config import settings
+from app.utils.llm_language import get_language_instruction
+from app.utils.openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -110,15 +111,32 @@ def normalize_extracted_keyword_names(extracted: dict[str, Any]) -> tuple[list[s
     )
 
 
-async def extract_keywords_with_llm(text: str) -> dict[str, Any]:
+def _build_user_profile_block(profile: dict[str, Any]) -> str:
+    """Build a short text block describing the user profile for LLM context."""
+    parts = []
+    if profile.get("role"):
+        parts.append(f"Role: {profile['role']}")
+    if profile.get("experience_years") is not None:
+        parts.append(f"Experience: {profile['experience_years']} years")
+    if profile.get("skills_summary"):
+        parts.append(f"Skills: {profile['skills_summary'][:500]}")
+    if profile.get("current_company"):
+        parts.append(f"Current company: {profile['current_company']}")
+    return "; ".join(parts) if parts else "Not provided"
+
+
+async def extract_keywords_with_llm(
+    text: str,
+    preferred_language: str | None = None,
+    user_profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Use OpenAI to extract structured job requirements from JD text.
 
     Returns a dict with:
-    - skills: list of { name, level?, constraints?, notes? }
-    - domains: list of { name, description? }
-    - keywords: list of { term, context? }
-    - requirements_summary?: short paragraph of key requirements
+    - skills, domains, keywords, requirements_summary (as before)
+    - meta: optional { company_name?, job_title?, location?, posted_date?, application_deadline?, employment_type? }
+    - profile_fit: optional { level: 1-5, label?, summary? } when user_profile is provided (5-level scale)
     """
     if not text or not text.strip():
         return {"skills": [], "domains": [], "keywords": []}
@@ -139,25 +157,46 @@ async def extract_keywords_with_llm(text: str) -> dict[str, Any]:
     if len(text) > MAX_JD_TEXT_LENGTH:
         truncated += "\n\n[Text truncated for analysis.]"
 
-    client = AsyncOpenAI(api_key=settings.openai.api_key)
-    prompt = """Analyze the following job description and extract structured information. Return ONLY a valid JSON object (no markdown, no commentary) with these keys:
+    lang_instruction = get_language_instruction(preferred_language)
+    output_lang_note = (
+        "Output language: Return the ENTIRE JSON output in the user's preferred language. "
+        "All text fields (skill names, domain names, keyword terms, constraints, notes, descriptions, context, requirements_summary) "
+        "must be in that language. If the job description is in a different language, translate the extracted information to the user's preferred language. "
+    )
+    client = get_openai_client()
+    prompt = f"""Analyze the following job description and extract structured information.
+
+{lang_instruction}
+{output_lang_note}
+
+Return ONLY a valid JSON object (no markdown, no commentary) with these keys:
 
 - "skills": array of objects. Each object must have:
-  - "name": string (skill name, e.g. "Python", "React", "SQL")
-  - "level": string or null — required level: "required" | "preferred" | "nice-to-have" | "proficient" | "expert" | "basic" (or null if not stated)
-  - "constraints": string or null — e.g. "3+ years", "hands-on", "must have for backend"
-  - "notes": string or null — brief context from JD (e.g. "for API development", "testing")
+  - "name": string (skill name, in the user's preferred language; e.g. "Python", "React", "SQL" or translated equivalent)
+  - "level": string or null — required level: "required" | "preferred" | "nice-to-have" | "proficient" | "expert" | "basic" (or null if not stated). Use the user's language for these values if not English.
+  - "constraints": string or null — e.g. "3+ years", "hands-on" (in user's language)
+  - "notes": string or null — brief context from JD (in user's language)
 
 - "domains": array of objects. Each object must have:
-  - "name": string (domain/area, e.g. "Backend", "Frontend", "DevOps")
-  - "description": string or null — short description or focus area from the JD
+  - "name": string (domain/area, in user's language)
+  - "description": string or null — short description or focus area (in user's language)
 
 - "keywords": array of objects. Each object must have:
-  - "term": string (technology, concept, or keyword)
-  - "context": string or null — how it appears in the JD (e.g. "API design", "CI/CD")
+  - "term": string (technology, concept, or keyword, in user's language)
+  - "context": string or null — how it appears in the JD (in user's language)
 
-- "requirements_summary": string or null — one short paragraph (2–4 sentences) summarizing the main requirements, must-haves, and level expected. Useful for preparation.
+- "requirements_summary": string or null — one short paragraph (2–4 sentences) summarizing the main requirements, must-haves, and level expected, in the user's preferred language.
 
+- "meta": object with optional JD metadata (use null for missing): "company_name", "job_title", "location", "posted_date" (e.g. "2024-01-15" or text), "application_deadline", "employment_type" (e.g. "Full-time", "Part-time", "Contract"). All in the user's preferred language when possible.
+"""
+    if user_profile:
+        profile_block = _build_user_profile_block(user_profile)
+        prompt += f"""
+- "profile_fit": object comparing this JD to the candidate profile. Scale 1-5: 1=very low match, 2=low, 3=moderate, 4=high, 5=very high match. Include "level" (integer 1-5), "label" (short label in user's language, e.g. "Rất phù hợp"), "summary" (1-2 sentences explaining the match in user's language). Base this on role fit, experience vs requirements, and skills overlap.
+
+Candidate profile: {profile_block}
+"""
+    prompt += """
 Extract all explicitly mentioned or clearly implied skills with their level and constraints when stated. Do not invent requirements not present in the text.
 
 Job description:
@@ -229,12 +268,38 @@ Job description:
                     out.append({"term": x.get("name"), "context": x.get("context")})
             return out
 
-        return {
+        out: dict[str, Any] = {
             "skills": _ensure_skills_list(data.get("skills")),
             "domains": _ensure_domains_list(data.get("domains")),
             "keywords": _ensure_keywords_list(data.get("keywords")),
             "requirements_summary": data.get("requirements_summary") if isinstance(data.get("requirements_summary"), str) else None,
         }
+        # Meta: company, position, location, dates, employment type
+        meta_raw = data.get("meta")
+        if isinstance(meta_raw, dict):
+            out["meta"] = {
+                k: v for k, v in meta_raw.items()
+                if k in ("company_name", "job_title", "location", "posted_date", "application_deadline", "employment_type")
+                and v is not None and str(v).strip()
+            }
+        else:
+            out["meta"] = {}
+        # Profile fit: level 1-5 when user_profile was provided
+        fit_raw = data.get("profile_fit")
+        if isinstance(fit_raw, dict) and fit_raw.get("level") is not None:
+            try:
+                level = int(fit_raw["level"])
+                level = max(1, min(5, level))
+                out["profile_fit"] = {
+                    "level": level,
+                    "label": str(fit_raw.get("label") or "").strip() or None,
+                    "summary": str(fit_raw.get("summary") or "").strip() or None,
+                }
+            except (TypeError, ValueError):
+                out["profile_fit"] = None
+        else:
+            out["profile_fit"] = None
+        return out
     except Exception as e:
         logger.exception("LLM keyword extraction failed: %s", e)
         return {"skills": [], "domains": [], "keywords": [], "error": str(e)}
@@ -267,6 +332,7 @@ async def extract_jd_content_with_llm(raw_text: str, source: str = "generic") ->
             "the main job posting content: job title, company name, location if present, and "
             "the full job description body. Remove all navigation, 'Apply now', cookie notices, "
             "repeated links, and unrelated text. Preserve paragraphs and structure. "
+            "Preserve the original language of the job description. "
             "Return ONLY the extracted job description as plain text, no commentary."
         )
         user = f"Extract the job description from this LinkedIn page text:\n\n{truncated}"
@@ -277,12 +343,13 @@ async def extract_jd_content_with_llm(raw_text: str, source: str = "generic") ->
             "may contain a job description and possibly other content, extract and return ONLY "
             "the job description. If the whole document is the JD, clean it: normalize whitespace, "
             "remove obvious artifacts or headers/footers that are not part of the JD. "
+            "Preserve the original language of the job description. "
             "Return ONLY the job description as plain text, no commentary."
         )
         user = f"Extract the job description from this document:\n\n{truncated}"
 
     try:
-        client = AsyncOpenAI(api_key=settings.openai.api_key)
+        client = get_openai_client()
         response = await client.chat.completions.create(
             model=settings.openai.model,
             messages=[

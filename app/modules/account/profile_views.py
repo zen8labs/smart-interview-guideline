@@ -169,7 +169,10 @@ async def upload_cv(
     try:
         cv_text = extract_text_from_file(content=content, filename=file.filename or "")
         if cv_text and cv_text.strip():
-            extracted = await extract_profile_from_cv_llm(cv_text)
+            extracted = await extract_profile_from_cv_llm(
+                cv_text,
+                preferred_language=current_user.preferred_language,
+            )
             profile_fields = (
                 "full_name",
                 "phone",

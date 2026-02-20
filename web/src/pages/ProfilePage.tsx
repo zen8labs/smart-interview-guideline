@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   profileSchema,
@@ -13,6 +14,7 @@ import {
   useLazyGetCvFileQuery,
   useDeleteCvMutation,
 } from '../store/api/endpoints/profileApi'
+import { SUPPORTED_LANGUAGES } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -39,6 +41,7 @@ const ACCEPTED_CV_TYPES = '.pdf,.docx,.txt'
 const MAX_CV_SIZE_MB = 10
 
 export function ProfilePage() {
+  const { t } = useTranslation()
   const { data: user, isLoading: isLoadingUser } = useGetUserInfoQuery()
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
   const [uploadCv, { isLoading: isUploading }] = useUploadCvMutation()
@@ -72,6 +75,7 @@ export function ProfilePage() {
       education_summary: '',
       role: '',
       experience_years: 0,
+      preferred_language: 'en',
     },
   })
 
@@ -87,6 +91,7 @@ export function ProfilePage() {
         education_summary: user.education_summary ?? '',
         role: user.role ?? '',
         experience_years: user.experience_years ?? 0,
+        preferred_language: user.preferred_language ?? 'en',
       })
     }
   }, [user, reset])
@@ -104,17 +109,18 @@ export function ProfilePage() {
           education_summary: data.education_summary || null,
           role: data.role,
           experience_years: data.experience_years,
+          preferred_language: data.preferred_language || null,
         }).unwrap()
-        setProfileMessage({ type: 'success', text: 'Profile updated successfully.' })
+        setProfileMessage({ type: 'success', text: t('profile.updated') })
       } catch (err: unknown) {
         const apiError = err as { data?: { detail?: string } }
         setProfileMessage({
           type: 'error',
-          text: apiError?.data?.detail || 'Failed to update profile.',
+          text: apiError?.data?.detail || t('profile.updateFailed'),
         })
       }
     },
-    [updateProfile],
+    [updateProfile, t],
   )
 
   const handleFileSelect = useCallback(
@@ -126,7 +132,7 @@ export function ProfilePage() {
       if (file.size > MAX_CV_SIZE_MB * 1024 * 1024) {
         setCvMessage({
           type: 'error',
-          text: `File too large. Maximum size is ${MAX_CV_SIZE_MB} MB.`,
+          text: t('profile.cvFileTooLarge', { max: MAX_CV_SIZE_MB }),
         })
         return
       }
@@ -136,13 +142,13 @@ export function ProfilePage() {
         await uploadCv(file).unwrap()
         setCvMessage({
           type: 'success',
-          text: 'CV uploaded. Profile fields have been filled from your CV—please review and save.',
+          text: t('profile.cvUploaded'),
         })
       } catch (err: unknown) {
         const apiError = err as { data?: { detail?: string } }
         setCvMessage({
           type: 'error',
-          text: apiError?.data?.detail || 'Failed to upload CV.',
+          text: apiError?.data?.detail || t('profile.cvUploadFailed'),
         })
       }
 
@@ -151,7 +157,7 @@ export function ProfilePage() {
         fileInputRef.current.value = ''
       }
     },
-    [uploadCv],
+    [uploadCv, t],
   )
 
   const handleDownloadCv = useCallback(async () => {
@@ -169,24 +175,24 @@ export function ProfilePage() {
       const apiError = err as { data?: { detail?: string } }
       setCvMessage({
         type: 'error',
-        text: apiError?.data?.detail || 'Failed to download CV.',
+        text: apiError?.data?.detail || t('profile.cvDownloadFailed'),
       })
     }
-  }, [getCvFile, user])
+  }, [getCvFile, user, t])
 
   const handleDeleteCv = useCallback(async () => {
     try {
       setCvMessage(null)
       await deleteCv().unwrap()
-      setCvMessage({ type: 'success', text: 'CV deleted.' })
+      setCvMessage({ type: 'success', text: t('profile.cvDeleted') })
     } catch (err: unknown) {
       const apiError = err as { data?: { detail?: string } }
       setCvMessage({
         type: 'error',
-        text: apiError?.data?.detail || 'Failed to delete CV.',
+        text: apiError?.data?.detail || t('profile.cvDeleteFailed'),
       })
     }
-  }, [deleteCv])
+  }, [deleteCv, t])
 
   if (isLoadingUser) {
     return (
@@ -200,19 +206,15 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Profile Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your professional profile to get tailored interview preparation.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">{t('profile.title')}</h1>
+        <p className="text-muted-foreground">{t('profile.subtitle')}</p>
       </div>
 
       {/* Profile Form Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Professional Info</CardTitle>
-          <CardDescription>
-            Select your role and experience level so we can personalize your roadmap.
-          </CardDescription>
+          <CardTitle>{t('profile.professionalInfo')}</CardTitle>
+          <CardDescription>{t('profile.professionalInfoDesc')}</CardDescription>
         </CardHeader>
 
         <form onSubmit={handleSubmit(onSubmitProfile)}>
@@ -229,7 +231,33 @@ export function ProfilePage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="full_name">Full name</Label>
+              <Label htmlFor="preferred_language">{t('profile.language')}</Label>
+              <Controller
+                name="preferred_language"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || 'en'}
+                    onValueChange={(v) => field.onChange(v)}
+                  >
+                    <SelectTrigger id="preferred_language">
+                      <SelectValue placeholder={t('profile.language')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">{t('profile.languageDesc')}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="full_name">{t('profile.fullName')}</Label>
               <Controller
                 name="full_name"
                 control={control}
@@ -237,7 +265,7 @@ export function ProfilePage() {
                   <Input
                     id="full_name"
                     type="text"
-                    placeholder="e.g. Nguyen Van A"
+                    placeholder={t('profile.placeholderFullName')}
                     {...field}
                     value={field.value ?? ''}
                     aria-invalid={errors.full_name ? 'true' : 'false'}
@@ -250,7 +278,7 @@ export function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">{t('profile.phone')}</Label>
               <Controller
                 name="phone"
                 control={control}
@@ -258,7 +286,7 @@ export function ProfilePage() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="e.g. +84 123 456 789"
+                    placeholder={t('profile.placeholderPhone')}
                     {...field}
                     value={field.value ?? ''}
                     aria-invalid={errors.phone ? 'true' : 'false'}
@@ -271,7 +299,7 @@ export function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="linkedin_url">LinkedIn URL</Label>
+              <Label htmlFor="linkedin_url">{t('profile.linkedinUrl')}</Label>
               <Controller
                 name="linkedin_url"
                 control={control}
@@ -279,7 +307,7 @@ export function ProfilePage() {
                   <Input
                     id="linkedin_url"
                     type="url"
-                    placeholder="https://linkedin.com/in/yourprofile"
+                    placeholder={t('profile.placeholderLinkedIn')}
                     {...field}
                     value={field.value ?? ''}
                     aria-invalid={errors.linkedin_url ? 'true' : 'false'}
@@ -292,7 +320,7 @@ export function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="current_company">Current company</Label>
+              <Label htmlFor="current_company">{t('profile.currentCompany')}</Label>
               <Controller
                 name="current_company"
                 control={control}
@@ -300,7 +328,7 @@ export function ProfilePage() {
                   <Input
                     id="current_company"
                     type="text"
-                    placeholder="e.g. ABC Technology"
+                    placeholder={t('profile.placeholderCompany')}
                     {...field}
                     value={field.value ?? ''}
                     aria-invalid={errors.current_company ? 'true' : 'false'}
@@ -313,7 +341,7 @@ export function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="skills_summary">Skills summary</Label>
+              <Label htmlFor="skills_summary">{t('profile.skillsSummary')}</Label>
               <Controller
                 name="skills_summary"
                 control={control}
@@ -321,7 +349,7 @@ export function ProfilePage() {
                   <textarea
                     id="skills_summary"
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Main skills, technologies (e.g. Python, React, SQL)"
+                    placeholder={t('profile.placeholderSkills')}
                     {...field}
                     value={field.value ?? ''}
                     rows={3}
@@ -335,7 +363,7 @@ export function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="education_summary">Education summary</Label>
+              <Label htmlFor="education_summary">{t('profile.educationSummary')}</Label>
               <Controller
                 name="education_summary"
                 control={control}
@@ -343,7 +371,7 @@ export function ProfilePage() {
                   <textarea
                     id="education_summary"
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Degree(s), school(s)"
+                    placeholder={t('profile.placeholderEducation')}
                     {...field}
                     value={field.value ?? ''}
                     rows={3}
@@ -357,7 +385,7 @@ export function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">{t('profile.role')}</Label>
               <Controller
                 name="role"
                 control={control}
@@ -370,7 +398,7 @@ export function ProfilePage() {
                       id="role"
                       aria-invalid={errors.role ? 'true' : 'false'}
                     >
-                      <SelectValue placeholder="Select your role" />
+                      <SelectValue placeholder={t('profile.selectRole')} />
                     </SelectTrigger>
                     <SelectContent>
                       {USER_ROLES.map((role) => (
@@ -388,7 +416,7 @@ export function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="experience_years">Years of Experience</Label>
+              <Label htmlFor="experience_years">{t('profile.experienceYears')}</Label>
               <Controller
                 name="experience_years"
                 control={control}
@@ -398,7 +426,7 @@ export function ProfilePage() {
                     type="number"
                     min={0}
                     max={50}
-                    placeholder="e.g. 3"
+                    placeholder={t('profile.placeholderExperience')}
                     value={field.value}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                     onBlur={field.onBlur}
@@ -419,7 +447,7 @@ export function ProfilePage() {
               type="submit"
               disabled={isUpdating || !isDirty}
             >
-              {isUpdating ? 'Saving...' : 'Save Profile'}
+              {isUpdating ? t('profile.saving') : t('profile.saveProfile')}
             </Button>
           </CardFooter>
         </form>
@@ -428,11 +456,8 @@ export function ProfilePage() {
       {/* CV Upload Card */}
       <Card>
         <CardHeader>
-          <CardTitle>CV / Resume</CardTitle>
-          <CardDescription>
-            Upload your CV so the AI can better match your skills with the job description.
-            Accepted formats: PDF, DOCX, TXT (max {MAX_CV_SIZE_MB} MB).
-          </CardDescription>
+          <CardTitle>{t('profile.cv')}</CardTitle>
+          <CardDescription>{t('profile.cvDesc', { max: MAX_CV_SIZE_MB })}</CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
@@ -462,7 +487,7 @@ export function ProfilePage() {
                   disabled={isDownloading}
                 >
                   <Download className="mr-1 h-4 w-4" />
-                  {isDownloading ? 'Downloading...' : 'Download'}
+                  {isDownloading ? t('profile.downloading') : t('profile.download')}
                 </Button>
                 <Button
                   variant="ghost"
@@ -472,12 +497,12 @@ export function ProfilePage() {
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="mr-1 h-4 w-4" />
-                  {isDeleting ? 'Deleting...' : 'Remove'}
+                  {isDeleting ? t('profile.deleting') : t('profile.remove')}
                 </Button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No CV uploaded yet.</p>
+            <p className="text-sm text-muted-foreground">{t('profile.noCv')}</p>
           )}
 
           <Separator />
@@ -500,10 +525,10 @@ export function ProfilePage() {
             >
               <Upload className="mr-2 h-4 w-4" />
               {isUploading
-                ? 'Uploading...'
+                ? t('profile.uploading')
                 : user?.cv_filename
-                  ? 'Replace CV'
-                  : 'Upload CV'}
+                  ? t('profile.replaceCv')
+                  : t('profile.uploadCv')}
             </Button>
           </div>
         </CardContent>

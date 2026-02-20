@@ -35,8 +35,13 @@ class Preparation(SQLModel, table=True):
         sa_column=Column(JSON), default_factory=list
     )
 
-    # Bước 3: Roadmap tạo sau khi user nộp memory scan
+    # Bước 3: Roadmap tạo sau khi user chọn "Tiếp tục tạo roadmap"
     roadmap_id: int | None = SQLField(default=None, foreign_key="roadmaps.id", index=True)
+
+    # Kết quả memory scan lần cuối (để user xem lại và quyết định tạo roadmap hay làm lại)
+    last_memory_scan_result: dict[str, Any] | None = SQLField(
+        sa_column=Column(JSON), default=None
+    )
 
     # Bước 4: Bộ câu hỏi self-check (có thể lưu snapshot hoặc lấy theo roadmap)
     self_check_question_ids: list[int] = SQLField(
@@ -55,6 +60,7 @@ class PreparationResponse(BaseModel):
     jd_analysis_id: int
     status: str
     roadmap_id: int | None
+    last_memory_scan_result: dict[str, Any] | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

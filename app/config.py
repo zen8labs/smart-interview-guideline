@@ -167,6 +167,12 @@ class OpenAISettings(BaseSettings):
         validation_alias="OPENAI_API_KEY",
     )
 
+    base_url: str = Field(
+        default="",
+        description="Base URL for OpenAI-compatible API (e.g. Azure, local LLM). Leave empty for api.openai.com",
+        validation_alias="OPENAI_BASE_URL",
+    )
+
     model: str = Field(
         default="gpt-4",
         description="Default OpenAI model",

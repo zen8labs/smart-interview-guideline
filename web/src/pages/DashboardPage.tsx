@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useGetUserInfoQuery } from '@/store/api/endpoints/authApi'
 import { useGetDailyRoadmapQuery } from '@/store/api/endpoints/roadmapApi'
 import {
@@ -38,6 +39,7 @@ interface QuickActionCardProps {
   href: string
   badge?: string
   badgeVariant?: 'default' | 'secondary' | 'outline'
+  ctaText?: string
 }
 
 function QuickActionCard({
@@ -47,6 +49,7 @@ function QuickActionCard({
   href,
   badge,
   badgeVariant = 'secondary',
+  ctaText = 'Get started',
 }: QuickActionCardProps) {
   return (
     <Link to={href} className="group">
@@ -63,7 +66,7 @@ function QuickActionCard({
         </CardHeader>
         <CardContent className="pt-0">
           <span className="inline-flex items-center gap-1 text-sm font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-            Get started <ArrowRight className="size-3.5" />
+            {ctaText} <ArrowRight className="size-3.5" />
           </span>
         </CardContent>
       </Card>
@@ -72,6 +75,7 @@ function QuickActionCard({
 }
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const { data: user, isLoading } = useGetUserInfoQuery()
   const { data: dailyRoadmap } = useGetDailyRoadmapQuery()
 
@@ -84,10 +88,10 @@ export function DashboardPage() {
         ) : (
           <>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}
+              {t('dashboard.welcome')}{user?.email ? `, ${user.email.split('@')[0]}` : ''}
             </h1>
             <p className="text-muted-foreground">
-              Ready to ace your next interview? Here&apos;s your preparation hub.
+              {t('dashboard.subtitleReady')}
             </p>
           </>
         )}
@@ -101,16 +105,16 @@ export function DashboardPage() {
               <Target className="size-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Interview Readiness Score</h3>
+              <h3 className="font-semibold">{t('dashboard.readinessScore')}</h3>
               <p className="text-sm text-muted-foreground">
-                Start your first preparation journey to track your progress
+                {t('dashboard.readinessDesc')}
               </p>
             </div>
           </div>
           <Button asChild>
             <Link to="/interviews">
               <BrainCircuit className="size-4" />
-              Start Preparation
+              {t('dashboard.startPreparation')}
             </Link>
           </Button>
         </CardContent>
@@ -120,40 +124,44 @@ export function DashboardPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold tracking-tight">
-            Quick Actions
+            {t('dashboard.quickActions')}
           </h2>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <QuickActionCard
-            title="Interview Prep"
-            description="Analyze a Job Description and get a personalized study roadmap"
+            title={t('dashboard.interviewPrep')}
+            description={t('dashboard.interviewPrepDesc')}
             icon={<FileText className="size-5" />}
             href="/preparations"
-            badge="Core"
+            badge={t('dashboard.badgeCore')}
+            ctaText={t('dashboard.getStarted')}
           />
           <QuickActionCard
-            title="Knowledge Base"
-            description="Browse visual learning cards and AI-generated study materials"
+            title={t('dashboard.knowledgeBase')}
+            description={t('dashboard.knowledgeBaseDesc')}
             icon={<BookOpen className="size-5" />}
             href="/knowledge"
-            badge="Learn"
+            badge={t('dashboard.badgeLearn')}
             badgeVariant="outline"
+            ctaText={t('dashboard.getStarted')}
           />
           <QuickActionCard
-            title="Community"
-            description="Real interview questions from the community, anonymized and verified"
+            title={t('dashboard.community')}
+            description={t('dashboard.communityDesc')}
             icon={<Users className="size-5" />}
             href="/community"
-            badge="Crowd"
+            badge={t('dashboard.badgeCrowd')}
             badgeVariant="outline"
+            ctaText={t('dashboard.getStarted')}
           />
           <QuickActionCard
-            title="Memory Scan"
-            description="Quick adaptive quiz to assess your current knowledge level"
+            title={t('dashboard.memoryScan')}
+            description={t('dashboard.memoryScanDesc')}
             icon={<BrainCircuit className="size-5" />}
             href="/assessment"
-            badge="Quiz"
+            badge={t('dashboard.badgeQuiz')}
             badgeVariant="outline"
+            ctaText={t('dashboard.getStarted')}
           />
         </div>
       </section>

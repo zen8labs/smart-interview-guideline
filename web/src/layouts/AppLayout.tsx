@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { SidebarProvider, useSidebar } from '@/hooks/useSidebar'
 import { AppSidebar } from '@/components/AppSidebar'
 import { AppHeader } from '@/components/AppHeader'
+import { I18nSync } from '@/components/I18nSync'
 import { cn } from '@/lib/utils'
 import {
   Sheet,
@@ -16,6 +17,7 @@ function AppLayoutInner() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      <I18nSync />
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <AppSidebar />

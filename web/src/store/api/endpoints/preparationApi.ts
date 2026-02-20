@@ -1,12 +1,21 @@
 import { baseApi } from '../baseApi'
 import type { JDAnalysisResult } from './analysisApi'
 
+export interface LastMemoryScanResult {
+  score_percent: number
+  correct_count: number
+  total_questions: number
+  knowledge_assessment?: KnowledgeAreaAssessment[]
+  session_id?: number
+}
+
 export interface PreparationItem {
   id: number
   user_id: number
   jd_analysis_id: number
   status: string
   roadmap_id: number | null
+  last_memory_scan_result?: LastMemoryScanResult | null
   created_at: string
 }
 
@@ -27,6 +36,13 @@ export interface MemoryScanSubmitRequest {
   answers: { question_id: string; selected_answer: string }[]
 }
 
+export interface KnowledgeAreaAssessment {
+  knowledge_area: string
+  level: number // 1-5
+  correct_count: number
+  total_count: number
+}
+
 export interface MemoryScanSubmitResponse {
   session_id: number
   score_percent: number
@@ -34,6 +50,7 @@ export interface MemoryScanSubmitResponse {
   correct_count: number
   preparation_id: number
   roadmap_ready: boolean
+  knowledge_assessment?: KnowledgeAreaAssessment[]
 }
 
 export interface RoadmapTaskReference {
@@ -100,6 +117,29 @@ export const preparationApi = baseApi.injectEndpoints({
         'Interview',
       ],
     }),
+    createRoadmap: builder.mutation<
+      { roadmap_id: number; preparation_id: number },
+      number
+    >({
+      query: (preparationId) => ({
+        url: `preparations/${preparationId}/create-roadmap`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, err, preparationId) => [
+        { type: 'Interview', id: `prep-${preparationId}` },
+        'Interview',
+      ],
+    }),
+    resetMemoryScan: builder.mutation<{ ok: boolean }, number>({
+      query: (preparationId) => ({
+        url: `preparations/${preparationId}/memory-scan/reset`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, err, preparationId) => [
+        { type: 'Interview', id: `prep-${preparationId}` },
+        'Interview',
+      ],
+    }),
     getPreparationRoadmap: builder.query<
       { roadmap_id: number | null; tasks: RoadmapTask[] },
       number
@@ -124,6 +164,8 @@ export const {
   useGetPreparationJdAnalysisQuery,
   useGetMemoryScanQuestionsQuery,
   useSubmitMemoryScanMutation,
+  useCreateRoadmapMutation,
+  useResetMemoryScanMutation,
   useGetPreparationRoadmapQuery,
   useGetSelfCheckQuestionsQuery,
 } = preparationApi

@@ -16,7 +16,7 @@ export function PreparationsListPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-2xl space-y-4">
+      <div className="mx-auto w-full space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-24 w-full" />
@@ -25,7 +25,7 @@ export function PreparationsListPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-5">
+    <div className="mx-auto w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Các lần chuẩn bị</h1>

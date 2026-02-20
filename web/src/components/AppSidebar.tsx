@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/hooks/useSidebar'
 import {
@@ -22,22 +23,22 @@ import {
 } from '@/components/ui/tooltip'
 
 interface NavItem {
-  label: string
+  labelKey: string
   icon: LucideIcon
   href: string
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-  { label: 'Interview Prep', icon: FileText, href: '/preparations' },
-  { label: 'Knowledge Base', icon: BookOpen, href: '/knowledge' },
-  { label: 'Đóng góp', icon: Gift, href: '/contribute' },
-  { label: 'Community', icon: Users, href: '/community' },
+  { labelKey: 'dashboard', icon: LayoutDashboard, href: '/' },
+  { labelKey: 'interviewPrep', icon: FileText, href: '/preparations' },
+  { labelKey: 'knowledgeBase', icon: BookOpen, href: '/knowledge' },
+  { labelKey: 'contribute', icon: Gift, href: '/contribute' },
+  { labelKey: 'community', icon: Users, href: '/community' },
 ]
 
 const bottomNavItems: NavItem[] = [
-  { label: 'Profile', icon: User, href: '/profile' },
-  { label: 'Settings', icon: Settings, href: '/settings' },
+  { labelKey: 'profile', icon: User, href: '/profile' },
+  { labelKey: 'settings', icon: Settings, href: '/settings' },
 ]
 
 function NavLink({
@@ -47,8 +48,10 @@ function NavLink({
   item: NavItem
   isCollapsed: boolean
 }) {
+  const { t } = useTranslation()
   const location = useLocation()
   const isActive = location.pathname === item.href
+  const label = t(`nav.${item.labelKey}`)
 
   const linkContent = (
     <Link
@@ -63,7 +66,7 @@ function NavLink({
       )}
     >
       <item.icon className="size-5 shrink-0" />
-      {!isCollapsed && <span className="truncate">{item.label}</span>}
+      {!isCollapsed && <span className="truncate">{label}</span>}
     </Link>
   )
 
@@ -71,7 +74,7 @@ function NavLink({
     return (
       <Tooltip>
         <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-        <TooltipContent side="right">{item.label}</TooltipContent>
+        <TooltipContent side="right">{label}</TooltipContent>
       </Tooltip>
     )
   }

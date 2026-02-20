@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FileText, ListTodo, MessageCircleQuestion, ClipboardList } from 'lucide-react'
+import { FileText, ListTodo, MessageCircleQuestion, ClipboardList, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const STEPS = [
@@ -9,43 +9,83 @@ const STEPS = [
   { key: 'self-check', label: 'Self-check', path: 'self-check', icon: MessageCircleQuestion },
 ] as const
 
+export type PreparationStepIndex = 0 | 1 | 2 | 3
+
 export interface PreparationStepperProps {
   /** 0 = Nhập JD, 1 = Memory Scan, 2 = Roadmap, 3 = Self-check */
-  currentStep: 0 | 1 | 2 | 3
+  currentStep: PreparationStepIndex
   /** Khi null (đang tạo preparation), chỉ bước 1 active, các bước sau disabled */
   preparationId: number | null
+  /** Step đang được xử lý (loading / creating) — hiển thị trạng thái "đang làm" trên stepper */
+  stepInProgress?: PreparationStepIndex | null
+  /** Câu mô tả ngắn hiển thị dưới stepper khi stepInProgress được set */
+  stepProgressMessage?: string
 }
 
-export function PreparationStepper({ currentStep, preparationId }: PreparationStepperProps) {
+export function PreparationStepper({
+  currentStep,
+  preparationId,
+  stepInProgress = null,
+  stepProgressMessage = '',
+}: PreparationStepperProps) {
   const activeIndex = currentStep
+  const inProgressIndex = stepInProgress ?? null
+  const effectiveProgress =
+    inProgressIndex != null ? Math.max(activeIndex, inProgressIndex) : activeIndex
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
-      <nav aria-label="Các bước chuẩn bị" className="flex flex-col">
+      <nav aria-label="Các bước chuẩn bị" className="flex flex-col gap-3">
         <div className="flex w-full items-center">
           {STEPS.map((step, index) => {
             const isCompleted = preparationId != null && index < activeIndex
             const isCurrent = index === activeIndex
+            const isInProgress = inProgressIndex !== null && index === inProgressIndex
             const base = preparationId != null ? `/preparations/${preparationId}` : null
             const href = base && step.path ? `${base}/${step.path}` : null
             const isDisabled = preparationId == null && index > 0
             const Icon = step.icon
-            const leftActive = index > 0 && index <= activeIndex
-            const rightActive = index < activeIndex
+            const leftActive = index > 0 && index <= effectiveProgress
+            const rightActive = index < effectiveProgress
+            const isConnectorLeadingToInProgress =
+              inProgressIndex !== null && index === inProgressIndex - 1
 
             return (
               <div key={step.key} className="flex min-w-0 flex-1 items-center">
-                {/* Connector trái: luôn có flex-1 (step đầu dùng để căn giữa pill) */}
+                {/* Connector trái */}
                 <div
                   className={cn(
-                    'h-0.5 min-w-[8px] flex-1 transition-colors self-center',
+                    'relative h-0.5 min-w-[8px] flex-1 self-center overflow-hidden transition-colors',
                     index > 0 ? (leftActive ? 'bg-primary' : 'bg-muted') : 'bg-transparent'
                   )}
                   aria-hidden
-                />
+                >
+                  {isConnectorLeadingToInProgress && (
+                    <span
+                      className="stepper-flow-shimmer absolute inset-0 block rounded-full"
+                      style={{
+                        background:
+                          'linear-gradient(90deg, transparent 0%, hsl(var(--primary)) 35%, transparent 70%)',
+                        backgroundSize: '60% 100%',
+                      }}
+                    />
+                  )}
+                </div>
                 {/* Step pill */}
                 <div className="flex shrink-0 flex-col items-center">
-                  {href && !isDisabled ? (
+                  {isInProgress ? (
+                    <span
+                      className={cn(
+                        'relative flex shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-primary bg-primary/15 px-3 py-1.5 text-xs font-medium text-primary',
+                        'ring-2 ring-primary/30 ring-offset-2 ring-offset-card animate-pulse'
+                      )}
+                      aria-busy="true"
+                      aria-live="polite"
+                    >
+                      <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                      <span className="hidden sm:inline">{step.label}</span>
+                    </span>
+                  ) : href && !isDisabled ? (
                     <Link
                       to={href}
                       className={cn(
@@ -80,7 +120,7 @@ export function PreparationStepper({ currentStep, preparationId }: PreparationSt
                     </span>
                   )}
                 </div>
-                {/* Connector phải: luôn có flex-1 (step cuối dùng để căn giữa pill) */}
+                {/* Connector phải */}
                 <div
                   className={cn(
                     'h-0.5 min-w-[8px] flex-1 transition-colors self-center',
@@ -94,7 +134,27 @@ export function PreparationStepper({ currentStep, preparationId }: PreparationSt
             )
           })}
         </div>
+
+        {stepProgressMessage && inProgressIndex !== null && (
+          <div
+            className="flex items-center justify-center gap-2 rounded-md bg-muted/50 py-2 px-3 text-center text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            <span>{stepProgressMessage}</span>
+          </div>
+        )}
       </nav>
+
+      <style>{`
+        @keyframes stepper-flow {
+          0% { background-position: 0% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .stepper-flow-shimmer {
+          animation: stepper-flow 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   )
 }
