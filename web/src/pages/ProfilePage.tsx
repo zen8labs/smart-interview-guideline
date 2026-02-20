@@ -10,6 +10,7 @@ import { useGetUserInfoQuery } from '../store/api/endpoints/authApi'
 import {
   useUpdateProfileMutation,
   useUploadCvMutation,
+  useLazyGetCvFileQuery,
   useDeleteCvMutation,
 } from '../store/api/endpoints/profileApi'
 import { Button } from '@/components/ui/button'
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
-import { AlertCircle, Check, FileText, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, Check, Download, FileText, Trash2, Upload } from 'lucide-react'
 
 const ACCEPTED_CV_TYPES = '.pdf,.docx,.txt'
 const MAX_CV_SIZE_MB = 10
@@ -41,6 +42,7 @@ export function ProfilePage() {
   const { data: user, isLoading: isLoadingUser } = useGetUserInfoQuery()
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
   const [uploadCv, { isLoading: isUploading }] = useUploadCvMutation()
+  const [getCvFile, { isLoading: isDownloading }] = useLazyGetCvFileQuery()
   const [deleteCv, { isLoading: isDeleting }] = useDeleteCvMutation()
 
   const [profileMessage, setProfileMessage] = useState<{
@@ -151,6 +153,26 @@ export function ProfilePage() {
     },
     [uploadCv],
   )
+
+  const handleDownloadCv = useCallback(async () => {
+    if (!user?.cv_filename) return
+    try {
+      setCvMessage(null)
+      const blob = await getCvFile().unwrap()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = user.cv_filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: unknown) {
+      const apiError = err as { data?: { detail?: string } }
+      setCvMessage({
+        type: 'error',
+        text: apiError?.data?.detail || 'Failed to download CV.',
+      })
+    }
+  }, [getCvFile, user])
 
   const handleDeleteCv = useCallback(async () => {
     try {
@@ -432,16 +454,27 @@ export function ProfilePage() {
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{user.cv_filename}</span>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDeleteCv}
-                disabled={isDeleting}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="mr-1 h-4 w-4" />
-                {isDeleting ? 'Deleting...' : 'Remove'}
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadCv}
+                  disabled={isDownloading}
+                >
+                  <Download className="mr-1 h-4 w-4" />
+                  {isDownloading ? 'Downloading...' : 'Download'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeleteCv}
+                  disabled={isDeleting}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  {isDeleting ? 'Deleting...' : 'Remove'}
+                </Button>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No CV uploaded yet.</p>

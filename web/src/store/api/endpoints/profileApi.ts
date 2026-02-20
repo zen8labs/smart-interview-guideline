@@ -46,6 +46,14 @@ export const profileApi = baseApi.injectEndpoints({
       invalidatesTags: ['User'],
     }),
 
+    // Download CV file (returns blob)
+    getCvFile: builder.query<Blob, void>({
+      query: () => ({
+        url: '/user/cv',
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
+
     // Delete CV file
     deleteCv: builder.mutation<void, void>({
       query: () => ({
@@ -60,5 +68,6 @@ export const profileApi = baseApi.injectEndpoints({
 export const {
   useUpdateProfileMutation,
   useUploadCvMutation,
+  useLazyGetCvFileQuery,
   useDeleteCvMutation,
 } = profileApi
