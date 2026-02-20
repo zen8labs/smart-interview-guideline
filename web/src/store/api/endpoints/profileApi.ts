@@ -4,6 +4,12 @@ import type { UserInfoResponse } from './authApi'
 // Request types
 
 export interface UpdateProfileRequest {
+  full_name?: string | null
+  phone?: string | null
+  linkedin_url?: string | null
+  current_company?: string | null
+  skills_summary?: string | null
+  education_summary?: string | null
   role?: string
   experience_years?: number | null
 }

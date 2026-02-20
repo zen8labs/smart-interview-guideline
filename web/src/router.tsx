@@ -7,6 +7,14 @@ import { RegisterPage } from './pages/RegisterPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { NewJourneyPage } from './pages/NewJourneyPage'
+import { AssessmentPage } from './pages/AssessmentPage'
+import { PreparationFlowLayout } from './layouts/PreparationFlowLayout'
+import { PreparationsListPage } from './pages/PreparationsListPage'
+import { PreparationMemoryScanPage } from './pages/PreparationMemoryScanPage'
+import { PreparationRoadmapPage } from './pages/PreparationRoadmapPage'
+import { PreparationSelfCheckPage } from './pages/PreparationSelfCheckPage'
+import { RoadmapPage } from './pages/RoadmapPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminProtectedRoute } from './components/AdminProtectedRoute'
@@ -51,21 +59,45 @@ export const router = createBrowserRouter([
       },
       {
         path: 'interviews',
-        element: (
-          <PlaceholderPage
-            title="Interview Prep"
-            description="Analyze job descriptions and generate personalized study roadmaps"
-          />
-        ),
+        element: <NewJourneyPage />,
+      },
+      {
+        path: 'interviews/new',
+        element: <NewJourneyPage />,
+      },
+      {
+        path: 'assessment',
+        element: <AssessmentPage />,
+      },
+      {
+        path: 'preparations',
+        element: <PreparationsListPage />,
+      },
+      {
+        path: 'preparations/:preparationId',
+        element: <PreparationFlowLayout />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="memory-scan" replace />,
+          },
+          {
+            path: 'memory-scan',
+            element: <PreparationMemoryScanPage />,
+          },
+          {
+            path: 'roadmap',
+            element: <PreparationRoadmapPage />,
+          },
+          {
+            path: 'self-check',
+            element: <PreparationSelfCheckPage />,
+          },
+        ],
       },
       {
         path: 'knowledge',
-        element: (
-          <PlaceholderPage
-            title="Knowledge Base"
-            description="Visual learning cards and AI-generated study materials"
-          />
-        ),
+        element: <RoadmapPage />,
       },
       {
         path: 'community',

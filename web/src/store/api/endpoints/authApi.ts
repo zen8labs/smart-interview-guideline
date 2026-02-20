@@ -15,6 +15,12 @@ export interface User {
   id: number;
   email: string;
   is_active: boolean;
+  full_name: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  current_company: string | null;
+  skills_summary: string | null;
+  education_summary: string | null;
   role: string | null;
   experience_years: number | null;
   cv_filename: string | null;
@@ -24,6 +30,7 @@ export interface User {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+  refresh_token?: string;
   user: User;
 }
 
@@ -31,6 +38,12 @@ export interface UserInfoResponse {
   id: number;
   email: string;
   is_active: boolean;
+  full_name: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  current_company: string | null;
+  skills_summary: string | null;
+  education_summary: string | null;
   role: string | null;
   experience_years: number | null;
   cv_filename: string | null;

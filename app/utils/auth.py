@@ -87,6 +87,41 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     return encoded_jwt
 
 
+def create_refresh_token(data: dict) -> str:
+    """Create a JWT refresh token with long expiry (e.g. 7 days)."""
+    to_encode = data.copy()
+    to_encode["type"] = "refresh"
+    expire = datetime.utcnow() + timedelta(days=settings.auth.refresh_token_expire_days)
+    to_encode["exp"] = expire
+    return jwt.encode(
+        to_encode,
+        settings.auth.jwt_secret_key,
+        algorithm=settings.auth.jwt_algorithm,
+    )
+
+
+def decode_refresh_token(token: str) -> TokenData:
+    """Decode and verify a JWT refresh token. Raises HTTPException if invalid."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(
+            token, settings.auth.jwt_secret_key, algorithms=[settings.auth.jwt_algorithm]
+        )
+        if payload.get("type") != "refresh":
+            raise credentials_exception
+        user_id: int = payload.get("user_id")
+        email: str = payload.get("email")
+        if user_id is None or email is None:
+            raise credentials_exception
+        return TokenData(user_id=user_id, email=email)
+    except JWTError:
+        raise credentials_exception
+
+
 def decode_access_token(token: str) -> TokenData:
     """
     Decode and verify a JWT access token.

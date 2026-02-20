@@ -34,6 +34,12 @@ class User(SQLModel, table=True):
     is_admin: bool = SQLField(default=False)
 
     # Profile fields
+    full_name: str | None = SQLField(default=None, max_length=255)
+    phone: str | None = SQLField(default=None, max_length=50)
+    linkedin_url: str | None = SQLField(default=None, max_length=500)
+    current_company: str | None = SQLField(default=None, max_length=255)
+    skills_summary: str | None = SQLField(default=None)
+    education_summary: str | None = SQLField(default=None)
     role: str | None = SQLField(default=None, max_length=50)
     experience_years: int | None = SQLField(default=None)
     cv_path: str | None = SQLField(default=None, max_length=500)
@@ -89,6 +95,12 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     is_admin: bool = False
+    full_name: str | None = None
+    phone: str | None = None
+    linkedin_url: str | None = None
+    current_company: str | None = None
+    skills_summary: str | None = None
+    education_summary: str | None = None
     role: str | None = None
     experience_years: int | None = None
     cv_filename: str | None = None
@@ -98,18 +110,32 @@ class UserResponse(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    """Schema for updating user profile (role & experience)."""
+    """Schema for updating user profile."""
 
+    full_name: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+    linkedin_url: str | None = Field(default=None, max_length=500)
+    current_company: str | None = Field(default=None, max_length=255)
+    skills_summary: str | None = None
+    education_summary: str | None = None
     role: UserRole | None = None
     experience_years: int | None = Field(default=None, ge=0, le=50)
 
 
 class Token(BaseModel):
-    """Schema for JWT token response."""
+    """Schema for JWT token response (login/register)."""
 
     access_token: str
     token_type: str = "bearer"
+    refresh_token: str | None = None
     user: UserResponse
+
+
+class RefreshResponse(BaseModel):
+    """Schema for refresh token response."""
+
+    access_token: str
+    token_type: str = "bearer"
 
 
 class TokenData(BaseModel):

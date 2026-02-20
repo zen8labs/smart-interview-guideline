@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { removeToken } from '@/utils/authStorage'
+import { removeTokens } from '@/utils/authStorage'
 import { useGetUserInfoQuery } from '@/store/api/endpoints/authApi'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -19,7 +19,7 @@ export function UserMenu() {
   const { data: user } = useGetUserInfoQuery()
 
   const handleLogout = () => {
-    removeToken()
+    removeTokens()
     navigate('/login')
   }
 

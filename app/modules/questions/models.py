@@ -187,9 +187,9 @@ class QuestionKnowledgeLink(SQLModel, table=True):
 
 class UserContribution(SQLModel, table=True):
     """Track user contributions for reputation system."""
-    
+
     __tablename__ = "user_contributions"
-    
+
     id: int | None = SQLField(default=None, primary_key=True)
     user_id: int = SQLField(foreign_key="users.id", index=True)
     content_type: str = SQLField(max_length=50)  # 'question' or 'knowledge'
@@ -200,6 +200,36 @@ class UserContribution(SQLModel, table=True):
     reward_credits: int = SQLField(default=0)
     reviewed_at: datetime | None = SQLField(default=None)
     reviewed_by_admin_id: int | None = SQLField(default=None, foreign_key="users.id")
+
+
+class AssessmentSession(SQLModel, table=True):
+    """User assessment or practice session (Memory Scan / Knowledge Check)."""
+
+    __tablename__ = "assessment_sessions"
+
+    id: int | None = SQLField(default=None, primary_key=True)
+    user_id: int = SQLField(foreign_key="users.id", index=True)
+    preparation_id: int | None = SQLField(
+        default=None, foreign_key="preparations.id", index=True
+    )
+    session_type: str = SQLField(max_length=50, index=True)  # memory_scan | knowledge_check
+    score_percent: float | None = SQLField(default=None)
+    created_at: datetime = SQLField(default_factory=datetime.utcnow)
+
+
+class UserQuestionAnswer(SQLModel, table=True):
+    """User's answer to a question within a session."""
+
+    __tablename__ = "user_question_answers"
+
+    id: int | None = SQLField(default=None, primary_key=True)
+    session_id: int = SQLField(foreign_key="assessment_sessions.id", index=True)
+    question_id: int | None = SQLField(
+        default=None, foreign_key="questions.id", index=True
+    )  # None khi câu từ AI (memory scan JSON)
+    selected_answer: str = SQLField(max_length=500)
+    is_correct: bool = SQLField(default=False)
+    created_at: datetime = SQLField(default_factory=datetime.utcnow)
 
 
 # Request/Response Schemas
@@ -342,7 +372,7 @@ class BulkRejectRequest(BaseModel):
 
 class QuestionFilterParams(BaseModel):
     """Schema for question filtering parameters."""
-    
+
     status: list[str] | None = None
     question_type: list[str] | None = None
     difficulty: list[str] | None = None
@@ -356,3 +386,43 @@ class QuestionFilterParams(BaseModel):
     sort_order: str = "desc"
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
+
+
+# User-facing (practice/assessment) schemas
+
+class UserQuestionItem(BaseModel):
+    """Question item for user display (options without correct_answer)."""
+
+    id: int
+    title: str
+    content: str
+    question_type: str
+    options: dict[str, Any]  # Frontend receives options; correct_answer stripped
+    difficulty: str
+    estimated_time_seconds: int | None
+    tags: list[str]
+
+    model_config = {"from_attributes": True}
+
+
+class AnswerSubmitItem(BaseModel):
+    """Single answer submission."""
+
+    question_id: int
+    selected_answer: str
+
+
+class SubmitAnswersRequest(BaseModel):
+    """Request body for submitting assessment answers."""
+
+    session_type: str  # memory_scan | knowledge_check
+    answers: list[AnswerSubmitItem]
+
+
+class SubmitAnswersResponse(BaseModel):
+    """Response after submitting answers."""
+
+    session_id: int
+    score_percent: float
+    total_questions: int
+    correct_count: int

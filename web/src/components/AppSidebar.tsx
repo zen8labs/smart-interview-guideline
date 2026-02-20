@@ -28,7 +28,7 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-  { label: 'Interview Prep', icon: FileText, href: '/interviews' },
+  { label: 'Interview Prep', icon: FileText, href: '/preparations' },
   { label: 'Knowledge Base', icon: BookOpen, href: '/knowledge' },
   { label: 'Community', icon: Users, href: '/community' },
 ]

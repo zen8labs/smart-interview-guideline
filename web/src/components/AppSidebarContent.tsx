@@ -29,8 +29,8 @@ const mainNavItems: NavItem[] = [
   {
     label: 'Interview Prep',
     icon: FileText,
-    href: '/interviews',
-    description: 'JD analysis and roadmaps',
+    href: '/preparations',
+    description: 'Nhập JD và bắt đầu chuẩn bị phỏng vấn',
   },
   {
     label: 'Knowledge Base',
@@ -58,7 +58,10 @@ interface NavLinkProps {
 
 function NavLink({ item, onClick }: NavLinkProps) {
   const location = useLocation()
-  const isActive = location.pathname === item.href
+  const isActive =
+    location.pathname === item.href ||
+    (item.href === '/interviews' && location.pathname.startsWith('/interviews')) ||
+    (item.href === '/preparations' && location.pathname.startsWith('/preparations'))
 
   return (
     <Link

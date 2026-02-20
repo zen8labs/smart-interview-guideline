@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { registerSchema, type RegisterFormData } from '../schemas/authSchemas'
 import { useRegisterMutation } from '../store/api/endpoints/authApi'
-import { saveToken } from '../utils/authStorage'
+import { saveToken, saveTokens } from '../utils/authStorage'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,7 +39,11 @@ export function RegisterPage() {
         email: data.email,
         password: data.password,
       }).unwrap()
-      saveToken(response.access_token)
+      if (response.refresh_token) {
+        saveTokens(response.access_token, response.refresh_token)
+      } else {
+        saveToken(response.access_token)
+      }
       navigate('/')
     } catch (err: unknown) {
       const apiError = err as { data?: { detail?: string } }

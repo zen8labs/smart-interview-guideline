@@ -10,6 +10,8 @@ from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.modules.account.models import ProfileUpdate, User, UserResponse, UserRole
+from app.modules.account.profile_services import extract_profile_from_cv_llm
+from app.modules.analysis.services import extract_text_from_file
 from app.utils.auth import CurrentUser
 from app.utils.db import DBSession
 
@@ -59,7 +61,7 @@ async def update_profile(
     session: DBSession,
 ) -> UserResponse:
     """
-    Update the current user's profile (role and experience).
+    Update the current user's profile (name, contact, role, experience, etc.).
 
     Args:
         profile_data: Profile fields to update
@@ -162,6 +164,35 @@ async def upload_cv(
     relative_path = f"{current_user.id}/{unique_name}"
     current_user.cv_path = relative_path
     current_user.updated_at = datetime.utcnow()
+
+    # Extract profile from CV using LLM and auto-fill user fields
+    try:
+        cv_text = extract_text_from_file(content=content, filename=file.filename or "")
+        if cv_text and cv_text.strip():
+            extracted = await extract_profile_from_cv_llm(cv_text)
+            profile_fields = (
+                "full_name",
+                "phone",
+                "linkedin_url",
+                "current_company",
+                "skills_summary",
+                "education_summary",
+                "role",
+                "experience_years",
+            )
+            for key in profile_fields:
+                value = extracted.get(key)
+                if value is not None and (value != "" if isinstance(value, str) else True):
+                    setattr(current_user, key, value)
+            if extracted:
+                logger.info(
+                    "CV profile extracted and applied for user %s: %s",
+                    current_user.id,
+                    list(extracted.keys()),
+                )
+    except Exception as e:
+        logger.warning("CV profile extraction failed (upload succeeded): %s", e)
+
     session.add(current_user)
     await session.commit()
     await session.refresh(current_user)

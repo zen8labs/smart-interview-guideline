@@ -62,26 +62,44 @@ export function ProfilePage() {
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
+      full_name: '',
+      phone: '',
+      linkedin_url: '',
+      current_company: '',
+      skills_summary: '',
+      education_summary: '',
       role: '',
       experience_years: 0,
     },
   })
 
-  // Reset form when user data loads
+  // Reset form when user data loads (including after CV upload + LLM auto-fill)
   useEffect(() => {
-    if (user?.role) {
+    if (user != null) {
       reset({
-        role: user.role,
+        full_name: user.full_name ?? '',
+        phone: user.phone ?? '',
+        linkedin_url: user.linkedin_url ?? '',
+        current_company: user.current_company ?? '',
+        skills_summary: user.skills_summary ?? '',
+        education_summary: user.education_summary ?? '',
+        role: user.role ?? '',
         experience_years: user.experience_years ?? 0,
       })
     }
-  }, [user?.role, user?.experience_years, reset])
+  }, [user, reset])
 
   const onSubmitProfile = useCallback(
     async (data: ProfileFormData) => {
       try {
         setProfileMessage(null)
         await updateProfile({
+          full_name: data.full_name || null,
+          phone: data.phone || null,
+          linkedin_url: data.linkedin_url || null,
+          current_company: data.current_company || null,
+          skills_summary: data.skills_summary || null,
+          education_summary: data.education_summary || null,
           role: data.role,
           experience_years: data.experience_years,
         }).unwrap()
@@ -114,7 +132,10 @@ export function ProfilePage() {
       try {
         setCvMessage(null)
         await uploadCv(file).unwrap()
-        setCvMessage({ type: 'success', text: 'CV uploaded successfully.' })
+        setCvMessage({
+          type: 'success',
+          text: 'CV uploaded. Profile fields have been filled from your CV—please review and save.',
+        })
       } catch (err: unknown) {
         const apiError = err as { data?: { detail?: string } }
         setCvMessage({
@@ -184,6 +205,134 @@ export function ProfilePage() {
                 <AlertDescription>{profileMessage.text}</AlertDescription>
               </Alert>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full name</Label>
+              <Controller
+                name="full_name"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="full_name"
+                    type="text"
+                    placeholder="e.g. Nguyen Van A"
+                    {...field}
+                    value={field.value ?? ''}
+                    aria-invalid={errors.full_name ? 'true' : 'false'}
+                  />
+                )}
+              />
+              {errors.full_name && (
+                <p className="text-sm text-destructive">{errors.full_name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Controller
+                name="phone"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="e.g. +84 123 456 789"
+                    {...field}
+                    value={field.value ?? ''}
+                    aria-invalid={errors.phone ? 'true' : 'false'}
+                  />
+                )}
+              />
+              {errors.phone && (
+                <p className="text-sm text-destructive">{errors.phone.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="linkedin_url">LinkedIn URL</Label>
+              <Controller
+                name="linkedin_url"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="linkedin_url"
+                    type="url"
+                    placeholder="https://linkedin.com/in/yourprofile"
+                    {...field}
+                    value={field.value ?? ''}
+                    aria-invalid={errors.linkedin_url ? 'true' : 'false'}
+                  />
+                )}
+              />
+              {errors.linkedin_url && (
+                <p className="text-sm text-destructive">{errors.linkedin_url.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="current_company">Current company</Label>
+              <Controller
+                name="current_company"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="current_company"
+                    type="text"
+                    placeholder="e.g. ABC Technology"
+                    {...field}
+                    value={field.value ?? ''}
+                    aria-invalid={errors.current_company ? 'true' : 'false'}
+                  />
+                )}
+              />
+              {errors.current_company && (
+                <p className="text-sm text-destructive">{errors.current_company.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="skills_summary">Skills summary</Label>
+              <Controller
+                name="skills_summary"
+                control={control}
+                render={({ field }) => (
+                  <textarea
+                    id="skills_summary"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Main skills, technologies (e.g. Python, React, SQL)"
+                    {...field}
+                    value={field.value ?? ''}
+                    rows={3}
+                    aria-invalid={errors.skills_summary ? 'true' : 'false'}
+                  />
+                )}
+              />
+              {errors.skills_summary && (
+                <p className="text-sm text-destructive">{errors.skills_summary.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="education_summary">Education summary</Label>
+              <Controller
+                name="education_summary"
+                control={control}
+                render={({ field }) => (
+                  <textarea
+                    id="education_summary"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Degree(s), school(s)"
+                    {...field}
+                    value={field.value ?? ''}
+                    rows={3}
+                    aria-invalid={errors.education_summary ? 'true' : 'false'}
+                  />
+                )}
+              />
+              {errors.education_summary && (
+                <p className="text-sm text-destructive">{errors.education_summary.message}</p>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>

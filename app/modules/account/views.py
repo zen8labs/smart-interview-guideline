@@ -3,12 +3,22 @@
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
 from sqlmodel import select
 
-from app.modules.account.models import Token, User, UserCreate, UserLogin, UserResponse
+from app.modules.account.models import (
+    RefreshResponse,
+    Token,
+    User,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
 from app.utils.auth import (
     CurrentUser,
     create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
     get_password_hash,
     verify_password,
 )
@@ -55,14 +65,18 @@ async def register(user_data: UserCreate, session: DBSession) -> Token:
     await session.commit()
     await session.refresh(new_user)
 
-    # Create access token
+    # Create access and refresh tokens
     access_token = create_access_token(
+        data={"user_id": new_user.id, "email": new_user.email}
+    )
+    refresh_token = create_refresh_token(
         data={"user_id": new_user.id, "email": new_user.email}
     )
 
     return Token(
         access_token=access_token,
         token_type="bearer",
+        refresh_token=refresh_token,
         user=UserResponse.model_validate(new_user),
     )
 
@@ -107,14 +121,30 @@ async def login(credentials: UserLogin, session: DBSession) -> Token:
     session.add(user)
     await session.commit()
 
-    # Create access token
+    # Create access and refresh tokens
     access_token = create_access_token(data={"user_id": user.id, "email": user.email})
+    refresh_token = create_refresh_token(data={"user_id": user.id, "email": user.email})
 
     return Token(
         access_token=access_token,
         token_type="bearer",
+        refresh_token=refresh_token,
         user=UserResponse.model_validate(user),
     )
+
+
+class RefreshBody(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_access_token(body: RefreshBody) -> RefreshResponse:
+    """Exchange a valid refresh token for a new access token."""
+    token_data = decode_refresh_token(body.refresh_token)
+    access_token = create_access_token(
+        data={"user_id": token_data.user_id, "email": token_data.email}
+    )
+    return RefreshResponse(access_token=access_token, token_type="bearer")
 
 
 @router.get("/userinfo", response_model=UserResponse)

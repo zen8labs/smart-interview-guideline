@@ -10,7 +10,11 @@ from app.config import settings
 from app.models.example import ExampleModel
 from app.modules.account import profile_router, router as account_router
 from app.modules.admin import router as admin_router
+from app.modules.analysis import router as analysis_router
+from app.modules.preparation import router as preparation_router
 from app.modules.questions import router as questions_router
+from app.modules.questions.user_views import router as user_questions_router
+from app.modules.roadmap import router as roadmap_router
 from app.utils.db import DBSession, database
 
 # Configure logging
@@ -40,7 +44,9 @@ async def lifespan(app: FastAPI):
         from pathlib import Path
         cv_upload_path = Path(settings.storage.cv_upload_path)
         cv_upload_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Upload directory ready: {cv_upload_path}")
+        jd_upload_path = Path(settings.storage.jd_upload_path)
+        jd_upload_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Upload directories ready: cv={cv_upload_path}, jd={jd_upload_path}")
 
         logger.info("Application startup complete")
     except Exception as e:
@@ -79,7 +85,11 @@ def create_app():
     app.include_router(account_router)
     app.include_router(profile_router)
     app.include_router(admin_router)
+    app.include_router(analysis_router)
+    app.include_router(preparation_router)
     app.include_router(questions_router)
+    app.include_router(user_questions_router)
+    app.include_router(roadmap_router)
 
     @app.get("/health")
     def health():

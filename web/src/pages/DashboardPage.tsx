@@ -1,4 +1,5 @@
 import { useGetUserInfoQuery } from '@/store/api/endpoints/authApi'
+import { useGetDailyRoadmapQuery } from '@/store/api/endpoints/roadmapApi'
 import {
   Card,
   CardContent,
@@ -72,6 +73,7 @@ function QuickActionCard({
 
 export function DashboardPage() {
   const { data: user, isLoading } = useGetUserInfoQuery()
+  const { data: dailyRoadmap } = useGetDailyRoadmapQuery()
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -126,7 +128,7 @@ export function DashboardPage() {
             title="Interview Prep"
             description="Analyze a Job Description and get a personalized study roadmap"
             icon={<FileText className="size-5" />}
-            href="/interviews"
+            href="/preparations"
             badge="Core"
           />
           <QuickActionCard
@@ -149,14 +151,14 @@ export function DashboardPage() {
             title="Memory Scan"
             description="Quick adaptive quiz to assess your current knowledge level"
             icon={<BrainCircuit className="size-5" />}
-            href="/interviews"
+            href="/assessment"
             badge="Quiz"
             badgeVariant="outline"
           />
         </div>
       </section>
 
-      {/* Stats Placeholder */}
+      {/* Today's tasks & Progress */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold tracking-tight">
           Your Progress
@@ -175,18 +177,24 @@ export function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="rounded-lg bg-green-500/10 p-2.5">
-                <BookOpen className="size-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">0</p>
-                <p className="text-sm text-muted-foreground">
-                  Knowledge cards studied
-                </p>
-              </div>
-            </CardContent>
+          <Card className="transition-shadow hover:shadow-md">
+            <Link to="/knowledge">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="rounded-lg bg-green-500/10 p-2.5">
+                  <BookOpen className="size-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">
+                    {dailyRoadmap?.tasks
+                      ? `${dailyRoadmap.tasks.filter((t) => t.is_completed).length}/${dailyRoadmap.tasks.length}`
+                      : '0'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Today&apos;s tasks done
+                  </p>
+                </div>
+              </CardContent>
+            </Link>
           </Card>
           <Card>
             <CardContent className="flex items-center gap-4 p-6">

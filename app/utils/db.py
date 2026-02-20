@@ -112,10 +112,82 @@ class Database:
         # Import all models here to ensure they're registered with SQLModel
         from app.models.example import ExampleModel  # noqa: F401
         from app.modules.account.models import User  # noqa: F401
+        from app.modules.analysis.models import JDAnalysis  # noqa: F401
+        from app.modules.questions.models import (  # noqa: F401
+            AssessmentSession,
+            UserQuestionAnswer,
+        )
+        from app.modules.preparation.models import Preparation  # noqa: F401
+        from app.modules.roadmap.models import DailyTask, Roadmap  # noqa: F401
         
         async with self.engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
+            await self._run_migrations(conn)
         logger.info("Database tables created successfully")
+
+    async def _run_migrations(self, conn) -> None:
+        """Add missing columns to existing tables (safe to run multiple times)."""
+        from sqlalchemy import text
+        # Add profile columns to users if missing (no bind params inside DO $$ - not supported by PostgreSQL)
+        for col, col_type in [
+            ("full_name", "VARCHAR(255)"),
+            ("phone", "VARCHAR(50)"),
+            ("linkedin_url", "VARCHAR(500)"),
+            ("current_company", "VARCHAR(255)"),
+            ("skills_summary", "TEXT"),
+            ("education_summary", "TEXT"),
+        ]:
+            await conn.execute(text(f"""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'users' AND column_name = '{col}'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN {col} {col_type};
+                    END IF;
+                END $$;
+            """))
+        # Add preparation_id to assessment_sessions if missing
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'assessment_sessions' AND column_name = 'preparation_id'
+                ) THEN
+                    ALTER TABLE assessment_sessions
+                    ADD COLUMN preparation_id INTEGER REFERENCES preparations(id);
+                END IF;
+            END $$;
+        """))
+        # Add preparation_id to roadmaps if missing
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'roadmaps' AND column_name = 'preparation_id'
+                ) THEN
+                    ALTER TABLE roadmaps
+                    ADD COLUMN preparation_id INTEGER REFERENCES preparations(id);
+                END IF;
+            END $$;
+        """))
+        # Make user_question_answers.question_id nullable if needed (PostgreSQL: alter column drop not null)
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'user_question_answers' AND column_name = 'question_id'
+                ) THEN
+                    ALTER TABLE user_question_answers ALTER COLUMN question_id DROP NOT NULL;
+                END IF;
+            EXCEPTION WHEN OTHERS THEN
+                NULL;
+            END $$;
+        """))
 
     async def close(self) -> None:
         """

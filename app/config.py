@@ -225,6 +225,12 @@ class StorageSettings(BaseSettings):
         description="Allowed file extensions for CV uploads",
     )
 
+    jd_subdir: str = Field(
+        default="jd",
+        description="Subdirectory under upload_dir for JD (job description) files",
+        validation_alias="UPLOAD_JD_SUBDIR",
+    )
+
     @property
     def cv_upload_path(self) -> str:
         """Get the full path for CV uploads."""
@@ -235,6 +241,12 @@ class StorageSettings(BaseSettings):
     def max_cv_size_bytes(self) -> int:
         """Get the maximum CV file size in bytes."""
         return self.max_cv_size_mb * 1024 * 1024
+
+    @property
+    def jd_upload_path(self) -> str:
+        """Get the full path for JD (job description) file uploads."""
+        import os
+        return os.path.join(self.upload_dir, self.jd_subdir)
 
     model_config = SettingsConfigDict(
         env_file=".env",
