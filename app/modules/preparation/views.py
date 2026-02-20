@@ -1,14 +1,26 @@
 """Preparation API: luồng 4 bước (JD → Memory Scan → Roadmap → Self-check)."""
 
+import uuid
 from copy import deepcopy
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from sqlmodel import select
 
+from app.config import settings
 from app.modules.account.models import User
 from app.modules.analysis.models import JDAnalysis, AnalysisSubmitResponse
-from app.modules.analysis.services import normalize_extracted_keyword_names
+from app.modules.analysis.services import (
+    ALLOWED_JD_EXTENSIONS,
+    LINKEDIN_JD_URL_PATTERN,
+    extract_jd_content_with_llm,
+    extract_keywords_with_llm,
+    extract_text_from_file,
+    fetch_text_from_url,
+    normalize_extracted_keyword_names,
+)
 from app.modules.preparation.models import (
     MemoryScanQuestionDisplay,
     MemoryScanSubmitRequest,
@@ -19,6 +31,7 @@ from app.modules.preparation.models import (
 )
 from app.modules.preparation.services import (
     create_roadmap_after_memory_scan,
+    evaluate_memory_scan_with_llm,
     generate_questions_with_ai,
     generate_self_check_questions,
     get_questions_from_warehouse,
@@ -32,6 +45,13 @@ from app.utils.auth import CurrentUser
 from app.utils.db import DBSession
 
 router = APIRouter(prefix="/api/preparations", tags=["preparation"])
+
+
+def _ensure_jd_dir() -> Path:
+    """Ensure JD upload directory exists (for submit-jd file upload)."""
+    jd_path = Path(settings.storage.jd_upload_path)
+    jd_path.mkdir(parents=True, exist_ok=True)
+    return jd_path
 
 
 def _questions_for_display(questions: list[dict]) -> list[MemoryScanQuestionDisplay]:
@@ -58,12 +78,17 @@ async def get_preparation_jd_analysis(
     session: DBSession,
     current_user: CurrentUser,
 ):
-    """Xem lại kết quả phân tích JD của preparation (bước 1)."""
+    """Xem lại kết quả phân tích JD của preparation (bước 1). Trả về 404 khi chưa có JD (jd_pending)."""
     prep = await session.get(Preparation, preparation_id)
     if not prep or prep.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preparation not found")
+    if prep.status == PreparationStatus.JD_PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="JD not submitted yet",
+        )
     jd = await session.get(JDAnalysis, prep.jd_analysis_id)
-    if not jd:
+    if not jd or not (jd.raw_text or (jd.extracted_keywords or {})):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="JD analysis not found")
     return AnalysisSubmitResponse(
         id=jd.id,
@@ -230,6 +255,7 @@ async def submit_memory_scan(
 
     knowledge_assessment: list[dict] = []
     jd = await session.get(JDAnalysis, prep.jd_analysis_id)
+    jd_summary = ""
     if jd:
         knowledge_areas = await get_knowledge_areas_for_assessment(
             jd_analysis=jd,
@@ -240,6 +266,23 @@ async def submit_memory_scan(
             preferred_language=current_user.preferred_language,
         )
         knowledge_assessment = _compute_knowledge_assessment(knowledge_areas, result_flags)
+        kw = jd.extracted_keywords or {}
+        skills, domains, keywords = normalize_extracted_keyword_names(kw)
+        jd_summary = f"Skills: {skills}. Domains: {domains}. Keywords: {keywords}."
+        if kw.get("requirements_summary"):
+            jd_summary += f" Key requirements: {kw.get('requirements_summary')}"
+
+    llm_report = await evaluate_memory_scan_with_llm(
+        memory_scan_questions=prep.memory_scan_questions,
+        answers=body.answers,
+        result_flags=result_flags,
+        score_percent=score_percent,
+        correct_count=correct_count,
+        total_questions=total,
+        knowledge_assessment=knowledge_assessment,
+        jd_summary=jd_summary,
+        preferred_language=current_user.preferred_language,
+    )
 
     prep.status = PreparationStatus.MEMORY_SCAN_DONE
     prep.last_memory_scan_result = {
@@ -248,6 +291,7 @@ async def submit_memory_scan(
         "total_questions": total,
         "knowledge_assessment": knowledge_assessment,
         "session_id": assessment.id,
+        "llm_report": llm_report,
     }
     prep.updated_at = datetime.utcnow()
     session.add(prep)
@@ -261,6 +305,7 @@ async def submit_memory_scan(
         "preparation_id": preparation_id,
         "roadmap_ready": False,
         "knowledge_assessment": knowledge_assessment,
+        "llm_report": llm_report,
     }
 
 
@@ -424,3 +469,133 @@ async def list_my_preparations(
     )
     items = result.all()
     return [PreparationResponse.model_validate(p) for p in items]
+
+
+@router.post("", response_model=PreparationResponse)
+async def create_preparation(
+    session: DBSession,
+    current_user: CurrentUser,
+):
+    """Tạo preparation mới (chưa có JD). Client sau đó gửi JD tại POST /{id}/submit-jd."""
+    analysis = JDAnalysis(
+        user_id=current_user.id,
+        raw_text="",
+        file_path=None,
+        interview_date=None,
+        extracted_keywords={},
+    )
+    session.add(analysis)
+    await session.flush()
+
+    prep = Preparation(
+        user_id=current_user.id,
+        jd_analysis_id=analysis.id,
+        status=PreparationStatus.JD_PENDING,
+    )
+    session.add(prep)
+    await session.commit()
+    await session.refresh(prep)
+    return PreparationResponse.model_validate(prep)
+
+
+@router.post("/{preparation_id}/submit-jd", response_model=AnalysisSubmitResponse)
+async def submit_jd_for_preparation(
+    preparation_id: int,
+    session: DBSession,
+    current_user: CurrentUser,
+    text: str | None = Form(None),
+    file: UploadFile | None = File(None),
+    linkedin_url: str | None = Form(None),
+):
+    """Nộp JD cho preparation (đã tạo trước bằng POST /). Cập nhật JDAnalysis tại chỗ."""
+    prep = await session.get(Preparation, preparation_id)
+    if not prep or prep.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preparation not found")
+    if prep.status != PreparationStatus.JD_PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Preparation already has JD. Use a new preparation to submit another JD.",
+        )
+
+    raw_text = ""
+    file_path = None
+
+    if linkedin_url and linkedin_url.strip():
+        if not LINKEDIN_JD_URL_PATTERN.match(linkedin_url.strip()):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid LinkedIn job URL. Example: https://www.linkedin.com/jobs/view/4375191000/",
+            )
+        raw_text = await fetch_text_from_url(linkedin_url.strip())
+        if not raw_text or len(raw_text) < 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not extract enough text from the URL. Try pasting the JD text instead.",
+            )
+        raw_text = await extract_jd_content_with_llm(raw_text, source="linkedin")
+    elif file and file.filename:
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ALLOWED_JD_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Allowed file types: {', '.join(ALLOWED_JD_EXTENSIONS)}",
+            )
+        content = await file.read()
+        raw_text = extract_text_from_file(content=content, filename=file.filename)
+        if not raw_text.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not extract text from the uploaded file",
+            )
+        raw_text = await extract_jd_content_with_llm(raw_text, source="file")
+        jd_dir = _ensure_jd_dir()
+        user_dir = jd_dir / str(current_user.id)
+        user_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = f"{uuid.uuid4().hex}_{Path(file.filename).name}"
+        save_path = user_dir / safe_name
+        save_path.write_bytes(content)
+        file_path = str(save_path.relative_to(Path(settings.storage.upload_dir)))
+    elif text and text.strip():
+        raw_text = text.strip()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide 'text', 'file', or 'linkedin_url'",
+        )
+
+    user_profile: dict[str, Any] = {}
+    if current_user.role:
+        user_profile["role"] = current_user.role
+    if current_user.experience_years is not None:
+        user_profile["experience_years"] = current_user.experience_years
+    if current_user.skills_summary:
+        user_profile["skills_summary"] = current_user.skills_summary
+    if current_user.current_company:
+        user_profile["current_company"] = current_user.current_company
+
+    keywords = await extract_keywords_with_llm(
+        raw_text,
+        preferred_language=current_user.preferred_language,
+        user_profile=user_profile if user_profile else None,
+    )
+
+    jd = await session.get(JDAnalysis, prep.jd_analysis_id)
+    if not jd:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="JD analysis record not found")
+    jd.raw_text = raw_text
+    jd.file_path = file_path
+    jd.extracted_keywords = keywords
+    prep.status = PreparationStatus.MEMORY_SCAN_READY
+    session.add(jd)
+    session.add(prep)
+    await session.commit()
+    await session.refresh(jd)
+    await session.refresh(prep)
+
+    return AnalysisSubmitResponse(
+        id=jd.id,
+        raw_text=jd.raw_text,
+        extracted_keywords=jd.extracted_keywords or {},
+        created_at=jd.created_at,
+        preparation_id=prep.id,
+    )

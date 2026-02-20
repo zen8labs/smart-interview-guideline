@@ -11,6 +11,8 @@ from app.utils.llm_language import get_language_instruction
 logger = logging.getLogger(__name__)
 
 MAX_CV_TEXT_LENGTH = 30_000  # truncate for LLM context
+MAX_SKILLS_SUMMARY_LENGTH = 4_000  # cap stored skills summary
+MAX_EDUCATION_SUMMARY_LENGTH = 3_000  # cap stored education summary
 
 # Map common job titles/roles from CV to our UserRole-like values
 ROLE_NORMALIZE_MAP = {
@@ -76,17 +78,31 @@ async def extract_profile_from_cv_llm(
 
     lang_instruction = get_language_instruction(preferred_language)
     client = get_openai_client()
-    prompt = f"""Analyze the following CV/Resume text and extract key information as JSON.
-{lang_instruction} Use that language for role names and any free-text summaries (skills_summary, education_summary).
+    prompt = f"""Analyze the following CV/Resume text and extract structured, detailed information. Do not return only keywords; extract full context and format each section clearly.
+{lang_instruction} Use that language for role names and all free-text sections (skills_summary, education_summary).
+
 Return ONLY a valid JSON object with exactly these keys (use null for missing values):
-- "full_name": string, full name of the candidate
-- "phone": string, phone number if present
-- "linkedin_url": string, LinkedIn profile URL if present
-- "role": string, best matching job role (e.g. "Backend Developer", "Full-Stack Developer", "Data Engineer", "QA/Tester", "Business Analyst", "DevOps", "Mobile Developer")
-- "experience_years": number or null, total years of professional experience (integer)
-- "current_company": string, current or most recent company name
-- "skills_summary": string, short summary of main skills (comma-separated or one paragraph, max 500 chars)
-- "education_summary": string, short summary of education (degree(s), school(s), max 500 chars)
+
+- "full_name": string — full name of the candidate
+- "phone": string — phone number if present
+- "linkedin_url": string — LinkedIn profile URL if present
+- "role": string — best matching job role (e.g. "Backend Developer", "Full-Stack Developer", "Data Engineer", "QA/Tester", "Business Analyst", "DevOps", "Mobile Developer")
+- "experience_years": number or null — total years of professional experience (integer)
+- "current_company": string — current or most recent company name (and optionally brief context, e.g. "Company X (Fintech)")
+
+- "skills_summary": string — DETAILED, FORMATTED section. Structure by category (e.g. Programming Languages, Frameworks & Libraries, Tools & Platforms, Soft Skills). For each category use a clear heading and list items. Include level or years of experience when stated in the CV (e.g. "Python (5 years)", "React (intermediate)"). Use newlines between categories and between items. Keep concise but informative; max 2000 characters.
+
+- "education_summary": string — DETAILED, FORMATTED section. One block per degree/certification. Each block must include: degree/certification name, institution name, year or date range. Optionally add: major, honors, thesis topic, GPA if present. Use newlines to separate entries. Example format:
+  • [Degree], [Institution] ([Year])
+    [Optional: Major, honors, or one line of detail]
+  • [Next entry]
+Max 1500 characters.
+
+Formatting rules for skills_summary and education_summary:
+- Use plain text with newlines; no markdown (no ** or ##).
+- Use consistent punctuation and spacing.
+- Use bullet (•) or dash (-) for list items if helpful for readability.
+- Preserve exact names of technologies, schools, and titles from the CV.
 
 CV/Resume text:
 """
@@ -127,15 +143,25 @@ CV/Resume text:
         else:
             data["experience_years"] = None
 
+        def _clean(s: Any, max_len: int = 0) -> str | None:
+            if s is None:
+                return None
+            out = (str(s) or "").strip()
+            if not out:
+                return None
+            if max_len and len(out) > max_len:
+                out = out[: max_len - 3].rstrip() + "..."
+            return out
+
         return {
-            "full_name": (data.get("full_name") or "").strip() or None,
-            "phone": (data.get("phone") or "").strip() or None,
-            "linkedin_url": (data.get("linkedin_url") or "").strip() or None,
-            "role": (data.get("role") or "").strip() or None,
+            "full_name": _clean(data.get("full_name")),
+            "phone": _clean(data.get("phone")),
+            "linkedin_url": _clean(data.get("linkedin_url")),
+            "role": _clean(data.get("role")),
             "experience_years": data.get("experience_years"),
-            "current_company": (data.get("current_company") or "").strip() or None,
-            "skills_summary": (data.get("skills_summary") or "").strip() or None,
-            "education_summary": (data.get("education_summary") or "").strip() or None,
+            "current_company": _clean(data.get("current_company")),
+            "skills_summary": _clean(data.get("skills_summary"), MAX_SKILLS_SUMMARY_LENGTH),
+            "education_summary": _clean(data.get("education_summary"), MAX_EDUCATION_SUMMARY_LENGTH),
         }
     except Exception as e:
         logger.exception("LLM CV profile extraction failed: %s", e)

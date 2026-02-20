@@ -101,7 +101,7 @@ export function JdAnalysisResultCard({
   preparationId,
   extracted_keywords,
   primaryAction = { label: 'Tiếp tục → Memory Scan', to: 'memory-scan' },
-  secondaryAction = { label: 'Dashboard', to: '/' },
+  secondaryAction = undefined,
 }: JdAnalysisResultCardProps) {
   const base = `/preparations/${preparationId}`
 

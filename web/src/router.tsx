@@ -7,7 +7,6 @@ import { RegisterPage } from './pages/RegisterPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ProfilePage } from './pages/ProfilePage'
-import { NewJourneyPage } from './pages/NewJourneyPage'
 import { AssessmentPage } from './pages/AssessmentPage'
 import { PreparationFlowLayout } from './layouts/PreparationFlowLayout'
 import { PreparationsListPage } from './pages/PreparationsListPage'
@@ -62,11 +61,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'interviews',
-        element: <NewJourneyPage />,
+        element: <Navigate to="/preparations" replace />,
       },
       {
         path: 'interviews/new',
-        element: <NewJourneyPage />,
+        element: <Navigate to="/preparations" replace />,
       },
       {
         path: 'assessment',

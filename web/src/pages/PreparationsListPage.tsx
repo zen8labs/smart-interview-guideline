@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
-import { useListPreparationsQuery } from '@/store/api/endpoints/preparationApi'
+import { Link, useNavigate } from 'react-router-dom'
+import { useListPreparationsQuery, useCreatePreparationMutation } from '@/store/api/endpoints/preparationApi'
 import {
   Card,
   CardContent,
@@ -12,7 +12,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { FileText, ListTodo, MessageCircleQuestion, Plus } from 'lucide-react'
 
 export function PreparationsListPage() {
+  const navigate = useNavigate()
   const { data: preparations = [], isLoading } = useListPreparationsQuery()
+  const [createPreparation, { isLoading: isCreating }] = useCreatePreparationMutation()
+
+  const handleNewPreparation = async () => {
+    try {
+      const prep = await createPreparation().unwrap()
+      navigate(`/preparations/${prep.id}/jd`)
+    } catch {
+      // Error handled by mutation
+    }
+  }
 
   if (isLoading) {
     return (
@@ -33,11 +44,9 @@ export function PreparationsListPage() {
             Xem lại JD, Memory Scan, Roadmap và Self-check của từng lần chuẩn bị
           </p>
         </div>
-        <Button asChild>
-          <Link to="/interviews">
-            <Plus className="mr-2 size-4" />
-            Chuẩn bị mới
-          </Link>
+        <Button onClick={handleNewPreparation} disabled={isCreating}>
+          <Plus className="mr-2 size-4" />
+          {isCreating ? 'Đang tạo...' : 'Chuẩn bị mới'}
         </Button>
       </div>
 
@@ -45,8 +54,8 @@ export function PreparationsListPage() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <p className="mb-4">Bạn chưa có lần chuẩn bị nào.</p>
-            <Button asChild>
-              <Link to="/interviews">Bắt đầu chuẩn bị (nhập JD)</Link>
+            <Button onClick={handleNewPreparation} disabled={isCreating}>
+              {isCreating ? 'Đang tạo...' : 'Bắt đầu chuẩn bị (nhập JD)'}
             </Button>
           </CardContent>
         </Card>
@@ -69,6 +78,12 @@ export function PreparationsListPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={`/preparations/${prep.id}/jd`}>
+                      <FileText className="mr-1 size-4" />
+                      JD
+                    </Link>
+                  </Button>
                   <Button asChild variant="outline" size="sm">
                     <Link to={`/preparations/${prep.id}/memory-scan`}>
                       <FileText className="mr-1 size-4" />

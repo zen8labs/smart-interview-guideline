@@ -338,6 +338,35 @@ Example: [{{"question_text": "Kể về một lần bạn xử lý conflict tron
         return []
 
 
+def _get_correct_answer_values_for_scoring(q: dict[str, Any]) -> tuple[str | None, str | None]:
+    """
+    Trả về (canonical_value, index_as_string) để so sánh với selected_answer.
+    - canonical_value: text đáp án đúng (từ correct_answer hoặc resolve từ correct_index + choices).
+    - index_as_string: "0", "1", ... nếu đáp án đúng được lưu bằng index (frontend có thể gửi index).
+    """
+    correct_ans = q.get("correct_answer")
+    if correct_ans is None and isinstance(q.get("options"), dict):
+        correct_ans = q["options"].get("correct_answer")
+    if correct_ans is None:
+        return None, None
+    correct_ans = str(correct_ans).strip()
+    opts = q.get("options") or {}
+    choices = opts.get("choices") if isinstance(opts, dict) else None
+    index_str: str | None = None
+    if isinstance(choices, list) and correct_ans.isdigit():
+        idx = int(correct_ans)
+        if 0 <= idx < len(choices):
+            index_str = correct_ans
+            c = choices[idx]
+            if isinstance(c, str):
+                return c.strip(), index_str
+            if isinstance(c, dict):
+                text = str(c.get("text") or c.get("label") or c.get("value") or c.get("content") or "").strip()
+                return (text or None), index_str
+            return str(c).strip(), index_str
+    return correct_ans if correct_ans else None, None
+
+
 def _score_memory_scan_answers(
     questions: list[dict[str, Any]],
     answers: list[dict[str, Any]],
@@ -353,11 +382,12 @@ def _score_memory_scan_answers(
         if not q:
             results.append(False)
             continue
-        correct_ans = q.get("correct_answer")
-        if correct_ans is None and isinstance(q.get("options"), dict):
-            correct_ans = q["options"].get("correct_answer")
-        correct_ans = str(correct_ans).strip() if correct_ans is not None else None
-        ok = correct_ans is not None and selected == correct_ans
+        canonical, index_str = _get_correct_answer_values_for_scoring(q)
+        ok = False
+        if canonical is not None:
+            ok = selected == canonical
+        if not ok and index_str is not None:
+            ok = selected == index_str
         if ok:
             correct_count += 1
         results.append(ok)
@@ -375,6 +405,81 @@ def _knowledge_level_from_percent(percent: float) -> int:
     if percent >= 20:
         return 2
     return 1
+
+
+async def evaluate_memory_scan_with_llm(
+    *,
+    memory_scan_questions: list[dict[str, Any]],
+    answers: list[dict[str, Any]],
+    result_flags: list[bool],
+    score_percent: float,
+    correct_count: int,
+    total_questions: int,
+    knowledge_assessment: list[dict[str, Any]] | None = None,
+    jd_summary: str = "",
+    preferred_language: str | None = None,
+) -> str:
+    """
+    Gửi bài test + đáp án user + kết quả chấm lên LLM để nhận báo cáo đánh giá.
+    LLM đưa ra insight cả từ câu sai (ví dụ đáp án sai vẫn có thể phản ánh mức độ hiểu biết).
+    Trả về report dạng Markdown; lỗi hoặc không có API key thì trả về chuỗi rỗng.
+    """
+    if not settings.openai.api_key:
+        return ""
+
+    by_id = {str(q.get("id")): q for q in memory_scan_questions if q.get("id") is not None}
+    qa_lines = []
+    for i, ans in enumerate(answers):
+        qid = str(ans.get("question_id") or ans.get("id", ""))
+        selected = str(ans.get("selected_answer", "")).strip()
+        q = by_id.get(qid)
+        if not q:
+            continue
+        ok = result_flags[i] if i < len(result_flags) else False
+        question_text = (q.get("question_text") or "")[:300]
+        qa_lines.append(
+            f"- **Q:** {question_text}\n  **User's answer:** {selected} → **{'Correct' if ok else 'Wrong'}**"
+        )
+    qa_block = "\n".join(qa_lines[:25])
+
+    summary = f"Score: {correct_count}/{total_questions} ({score_percent}% correct)."
+    if knowledge_assessment:
+        areas = [a.get("knowledge_area", "") for a in knowledge_assessment[:8] if a.get("knowledge_area")]
+        if areas:
+            summary += f" Knowledge areas assessed: {', '.join(areas)}."
+
+    lang_instruction = get_language_instruction(preferred_language)
+    client = get_openai_client()
+    prompt = f"""You are an expert interview coach. A candidate just completed a memory scan (knowledge check) for job preparation.
+
+**Context (optional):** {jd_summary or "General technical interview preparation."}
+
+**Test results:**
+{summary}
+
+**Per-question breakdown (question, user's answer, correct/wrong):**
+{qa_block}
+
+Write a short **evaluation report** (2–4 paragraphs) in Markdown that:
+1. Summarizes overall performance in a constructive way.
+2. Draws **insights from wrong answers**: even wrong choices can reveal what the candidate might believe or confuse (e.g. confusion between X and Y, or a partial understanding). Mention 1–3 such insights when relevant.
+3. Suggests 1–3 concrete focus areas for the next steps (roadmap/study).
+
+Be concise, supportive, and specific. Use bullet points or short paragraphs. Do not list all questions again.
+{lang_instruction}"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+            max_tokens=1000,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        return content if content else ""
+    except Exception as e:
+        logger.exception("evaluate_memory_scan_with_llm failed: %s", e)
+        return ""
 
 
 async def get_knowledge_areas_for_assessment(
@@ -464,7 +569,7 @@ async def create_roadmap_after_memory_scan(
         task = DailyTask(
             roadmap_id=roadmap.id,
             day_index=sort_order,
-            title=f"Học: {area}",
+            title=area,
             content=content,
             content_type="markdown",
             sort_order=sort_order,

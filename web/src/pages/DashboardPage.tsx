@@ -112,7 +112,7 @@ export function DashboardPage() {
             </div>
           </div>
           <Button asChild>
-            <Link to="/interviews">
+            <Link to="/preparations">
               <BrainCircuit className="size-4" />
               {t('dashboard.startPreparation')}
             </Link>

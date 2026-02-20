@@ -10,6 +10,7 @@ from sqlmodel import Column, Field as SQLField, JSON, SQLModel
 class PreparationStatus:
     """Trạng thái theo từng bước trong luồng 4 bước."""
 
+    JD_PENDING = "jd_pending"  # Đã tạo preparation, chưa có JD
     JD_DONE = "jd_done"  # Bước 1 xong
     MEMORY_SCAN_READY = "memory_scan_ready"  # Sẵn sàng làm memory scan
     MEMORY_SCAN_DONE = "memory_scan_done"  # Bước 2 xong (đã trả lời)

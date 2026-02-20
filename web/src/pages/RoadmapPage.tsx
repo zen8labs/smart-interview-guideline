@@ -65,7 +65,7 @@ export function RoadmapPage() {
               your personalized daily tasks.
             </p>
             <Button variant="outline" asChild>
-              <Link to="/interviews">Go to Interview Prep</Link>
+              <Link to="/preparations">Go to Interview Prep</Link>
             </Button>
           </CardContent>
         </Card>

@@ -9,6 +9,8 @@ import {
 } from '@/store/api/endpoints/preparationApi'
 import { usePreparationFlowProgress } from '@/contexts/PreparationFlowContext'
 import type { KnowledgeAreaAssessment, LastMemoryScanResult } from '@/store/api/endpoints/preparationApi'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { QuestionCard } from '@/components/QuestionCard'
 import { ThinkingLoader } from '@/components/ThinkingLoader'
 import { Button } from '@/components/ui/button'
@@ -113,14 +115,14 @@ function ResultView({
       : 'Bạn đang trên đúng hướng'
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-6">
+    <div className="mx-auto w-full space-y-6">
       <Card
         className={
           isHigh
-            ? 'border-emerald-200 bg-gradient-to-b from-emerald-50/80 to-background dark:border-emerald-800 dark:from-emerald-950/30'
+            ? 'border-emerald-200 bg-linear-to-b from-emerald-50/80 to-background dark:border-emerald-800 dark:from-emerald-950/30'
             : isLow
-              ? 'border-amber-200 bg-gradient-to-b from-amber-50/50 to-background dark:border-amber-900 dark:from-amber-950/20'
-              : 'border-primary/20 bg-gradient-to-b from-primary/5 to-background'
+              ? 'border-amber-200 bg-linear-to-b from-amber-50/50 to-background dark:border-amber-900 dark:from-amber-950/20'
+              : 'border-primary/20 bg-linear-to-b from-primary/5 to-background'
         }
       >
         <CardHeader className="text-center pb-2">
@@ -163,6 +165,22 @@ function ResultView({
                 {result.knowledge_assessment.map((a, i) => (
                   <LevelBar key={i} {...a} />
                 ))}
+              </div>
+            </div>
+          )}
+
+          {result.llm_report && (
+            <div className="rounded-xl border bg-background/60 p-4 space-y-2">
+              <p className="text-sm font-semibold text-muted-foreground">
+                Đánh giá từ AI
+              </p>
+              <div
+                className={
+                  'prose prose-sm dark:prose-invert max-w-none text-foreground ' +
+                  'prose-p:my-1.5 prose-ul:my-1.5 prose-li:my-0.5 prose-headings:mt-2 prose-headings:mb-1'
+                }
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{result.llm_report}</ReactMarkdown>
               </div>
             </div>
           )}
@@ -267,6 +285,7 @@ export function PreparationMemoryScanPage() {
         correct_count: res.correct_count,
         total_questions: res.total_questions,
         knowledge_assessment: res.knowledge_assessment,
+        llm_report: res.llm_report ?? null,
       })
     } catch {
       // Error handled by mutation
@@ -327,8 +346,8 @@ export function PreparationMemoryScanPage() {
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <p>Chưa có câu hỏi. Thử tải lại hoặc chọn nguồn khác (warehouse / AI).</p>
-            <Button className="mt-4" variant="outline" onClick={() => navigate('/interviews')}>
-              Về Interview Prep
+            <Button className="mt-4" variant="outline" onClick={() => navigate('/preparations')}>
+              Về danh sách chuẩn bị
             </Button>
           </CardContent>
         </Card>

@@ -52,14 +52,13 @@ export function NewJourneyPage() {
           preparationId={data.preparation_id}
           extracted_keywords={data.extracted_keywords}
           primaryAction={{ label: 'Tiếp tục → Memory Scan', to: `/preparations/${data.preparation_id}/memory-scan` }}
-          secondaryAction={{ label: 'Dashboard', to: '/' }}
         />
       </div>
     )
   }
 
   return (
-    <div className="mx-auto w-full space-y-5">
+    <div className="mx-auto space-y-5">
       <PreparationStepper currentStep={0} preparationId={null} />
       <Card>
         <CardHeader>

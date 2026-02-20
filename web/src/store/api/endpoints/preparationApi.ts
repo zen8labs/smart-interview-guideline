@@ -1,12 +1,20 @@
 import { baseApi } from '../baseApi'
 import type { JDAnalysisResult } from './analysisApi'
 
+export interface SubmitJdParams {
+  text?: string
+  file?: File
+  linkedin_url?: string
+}
+
 export interface LastMemoryScanResult {
   score_percent: number
   correct_count: number
   total_questions: number
   knowledge_assessment?: KnowledgeAreaAssessment[]
   session_id?: number
+  /** Báo cáo đánh giá từ LLM (Markdown), dựa trên bài test + đáp án + kết quả chấm */
+  llm_report?: string | null
 }
 
 export interface PreparationItem {
@@ -51,6 +59,8 @@ export interface MemoryScanSubmitResponse {
   preparation_id: number
   roadmap_ready: boolean
   knowledge_assessment?: KnowledgeAreaAssessment[]
+  /** Báo cáo đánh giá từ LLM (Markdown) */
+  llm_report?: string | null
 }
 
 export interface RoadmapTaskReference {
@@ -88,6 +98,33 @@ export const preparationApi = baseApi.injectEndpoints({
     getPreparation: builder.query<PreparationItem, number>({
       query: (id) => `preparations/${id}`,
       providesTags: (result, err, id) => [{ type: 'Interview', id: `prep-${id}` }],
+    }),
+    createPreparation: builder.mutation<PreparationItem, void>({
+      query: () => ({
+        url: 'preparations',
+        method: 'POST',
+      }),
+      invalidatesTags: ['Interview'],
+    }),
+    submitJdForPreparation: builder.mutation<
+      JDAnalysisResult,
+      { preparationId: number; params: SubmitJdParams }
+    >({
+      query: ({ preparationId, params }) => {
+        const formData = new FormData()
+        if (params.text) formData.append('text', params.text)
+        if (params.file) formData.append('file', params.file)
+        if (params.linkedin_url) formData.append('linkedin_url', params.linkedin_url)
+        return {
+          url: `preparations/${preparationId}/submit-jd`,
+          method: 'POST',
+          body: formData,
+        }
+      },
+      invalidatesTags: (result, err, { preparationId }) => [
+        { type: 'Interview', id: `prep-${preparationId}` },
+        'Interview',
+      ],
     }),
     getPreparationJdAnalysis: builder.query<JDAnalysisResult, number>({
       query: (preparationId) => `preparations/${preparationId}/jd-analysis`,
@@ -161,6 +198,8 @@ export const preparationApi = baseApi.injectEndpoints({
 export const {
   useListPreparationsQuery,
   useGetPreparationQuery,
+  useCreatePreparationMutation,
+  useSubmitJdForPreparationMutation,
   useGetPreparationJdAnalysisQuery,
   useGetMemoryScanQuestionsQuery,
   useSubmitMemoryScanMutation,

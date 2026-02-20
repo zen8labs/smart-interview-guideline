@@ -20,6 +20,8 @@ export interface PreparationStepperProps {
   stepInProgress?: PreparationStepIndex | null
   /** Câu mô tả ngắn hiển thị dưới stepper khi stepInProgress được set */
   stepProgressMessage?: string
+  /** Các step đã có dữ liệu (từ API) — connector tới các step này không bị mute dù đang ở step trước */
+  stepsWithData?: PreparationStepIndex[]
 }
 
 export function PreparationStepper({
@@ -27,26 +29,33 @@ export function PreparationStepper({
   preparationId,
   stepInProgress = null,
   stepProgressMessage = '',
+  stepsWithData,
 }: PreparationStepperProps) {
   const activeIndex = currentStep
   const inProgressIndex = stepInProgress ?? null
-  const effectiveProgress =
-    inProgressIndex != null ? Math.max(activeIndex, inProgressIndex) : activeIndex
+  const hasData = (i: number) => stepsWithData?.includes(i as PreparationStepIndex) ?? false
+
+  /** Step i is "reached" when it's completed, current, in progress, or already has data — connector stays solid (not dimmed) */
+  const stepReached = (i: number) =>
+    i <= activeIndex ||
+    (inProgressIndex !== null && i === inProgressIndex) ||
+    hasData(i)
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
       <nav aria-label="Các bước chuẩn bị" className="flex flex-col gap-3">
         <div className="flex w-full items-center">
           {STEPS.map((step, index) => {
-            const isCompleted = preparationId != null && index < activeIndex
+            const isCompleted =
+              preparationId != null && (index < activeIndex || hasData(index))
             const isCurrent = index === activeIndex
             const isInProgress = inProgressIndex !== null && index === inProgressIndex
             const base = preparationId != null ? `/preparations/${preparationId}` : null
             const href = base && step.path ? `${base}/${step.path}` : null
             const isDisabled = preparationId == null && index > 0
             const Icon = step.icon
-            const leftActive = index > 0 && index <= effectiveProgress
-            const rightActive = index < effectiveProgress
+            const leftActive = index > 0 && stepReached(index)
+            const rightActive = index < STEPS.length - 1 && stepReached(index + 1)
             const isConnectorLeadingToInProgress =
               inProgressIndex !== null && index === inProgressIndex - 1
 

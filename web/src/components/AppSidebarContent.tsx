@@ -60,7 +60,6 @@ function NavLink({ item, onClick }: NavLinkProps) {
   const location = useLocation()
   const isActive =
     location.pathname === item.href ||
-    (item.href === '/interviews' && location.pathname.startsWith('/interviews')) ||
     (item.href === '/preparations' && location.pathname.startsWith('/preparations'))
 
   return (
