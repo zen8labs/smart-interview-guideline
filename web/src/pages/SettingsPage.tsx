@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -34,6 +35,7 @@ type SettingsLanguageFormData = z.infer<typeof settingsLanguageSchema>
 
 export function SettingsPage() {
   const { t } = useTranslation()
+  const setPageTitle = useSetPageTitle()
   const { data: user, isLoading: isLoadingUser } = useGetUserInfoQuery()
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
   const [message, setMessage] = useState<{
@@ -52,6 +54,10 @@ export function SettingsPage() {
       preferred_language: 'en',
     },
   })
+
+  useEffect(() => {
+    setPageTitle(t('settings.title'), t('settings.subtitle'))
+  }, [setPageTitle, t])
 
   useEffect(() => {
     if (user != null) {
@@ -93,13 +99,6 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t('settings.title')}
-        </h1>
-        <p className="text-muted-foreground">{t('settings.subtitle')}</p>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>{t('settings.preferences')}</CardTitle>

@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useGetUserInfoQuery } from '@/store/api/endpoints/authApi'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { useGetDailyRoadmapQuery } from '@/store/api/endpoints/roadmapApi'
 import {
   Card,
@@ -9,7 +11,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import {
   FileText,
@@ -22,15 +23,6 @@ import {
   Clock,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-
-function WelcomeSkeleton() {
-  return (
-    <div className="space-y-3">
-      <Skeleton className="h-8 w-64" />
-      <Skeleton className="h-5 w-96" />
-    </div>
-  )
-}
 
 interface QuickActionCardProps {
   title: string
@@ -76,26 +68,19 @@ function QuickActionCard({
 
 export function DashboardPage() {
   const { t } = useTranslation()
+  const setPageTitle = useSetPageTitle()
   const { data: user, isLoading } = useGetUserInfoQuery()
   const { data: dailyRoadmap } = useGetDailyRoadmapQuery()
 
+  useEffect(() => {
+    const welcome = isLoading
+      ? t('dashboard.title')
+      : `${t('dashboard.welcome')}${user?.email ? `, ${user.email.split('@')[0]}` : ''}`
+    setPageTitle(welcome, t('dashboard.subtitleReady'))
+  }, [setPageTitle, t, isLoading, user?.email])
+
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      {/* Welcome Section */}
-      <section className="space-y-1">
-        {isLoading ? (
-          <WelcomeSkeleton />
-        ) : (
-          <>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              {t('dashboard.welcome')}{user?.email ? `, ${user.email.split('@')[0]}` : ''}
-            </h1>
-            <p className="text-muted-foreground">
-              {t('dashboard.subtitleReady')}
-            </p>
-          </>
-        )}
-      </section>
 
       {/* Interview Readiness Score - Placeholder */}
       <Card className="bg-linear-to-r from-primary/5 via-primary/3 to-transparent border-primary/10">

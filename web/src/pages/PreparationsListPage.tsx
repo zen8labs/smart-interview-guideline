@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { useListPreparationsQuery, useCreatePreparationMutation } from '@/store/api/endpoints/preparationApi'
 import {
   Card,
@@ -9,12 +11,20 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { FileText, ListTodo, MessageCircleQuestion, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 export function PreparationsListPage() {
   const navigate = useNavigate()
+  const setPageTitle = useSetPageTitle()
   const { data: preparations = [], isLoading } = useListPreparationsQuery()
   const [createPreparation, { isLoading: isCreating }] = useCreatePreparationMutation()
+
+  useEffect(() => {
+    setPageTitle(
+      'Các lần chuẩn bị',
+      'Xem lại JD, Memory Scan, Roadmap và Self-check của từng lần chuẩn bị',
+    )
+  }, [setPageTitle])
 
   const handleNewPreparation = async () => {
     try {
@@ -36,82 +46,65 @@ export function PreparationsListPage() {
   }
 
   return (
-    <div className="mx-auto w-full space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Các lần chuẩn bị</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Xem lại JD, Memory Scan, Roadmap và Self-check của từng lần chuẩn bị
-          </p>
-        </div>
-        <Button onClick={handleNewPreparation} disabled={isCreating}>
-          <Plus className="mr-2 size-4" />
-          {isCreating ? 'Đang tạo...' : 'Chuẩn bị mới'}
-        </Button>
-      </div>
-
+    <div className="mx-auto w-full space-y-3">
       {preparations.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <p className="mb-4">Bạn chưa có lần chuẩn bị nào.</p>
-            <Button onClick={handleNewPreparation} disabled={isCreating}>
+        <Card className="py-8">
+          <CardContent className="py-0 text-center text-muted-foreground">
+            <p className="mb-3 text-sm">Bạn chưa có lần chuẩn bị nào.</p>
+            <Button
+              onClick={handleNewPreparation}
+              disabled={isCreating}
+              size="sm"
+            >
               {isCreating ? 'Đang tạo...' : 'Bắt đầu chuẩn bị (nhập JD)'}
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-2">
+          <li>
+            <button
+              type="button"
+              onClick={handleNewPreparation}
+              disabled={isCreating}
+              className="w-full rounded-lg border border-dashed border-muted-foreground/30 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30 disabled:opacity-50"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Plus className="size-4 shrink-0" />
+                {isCreating ? 'Đang tạo...' : 'Chuẩn bị mới'}
+              </span>
+            </button>
+          </li>
           {preparations.map((prep) => (
             <li key={prep.id}>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">
-                    Chuẩn bị #{prep.id}
-                    {prep.status === 'roadmap_ready' && (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        · Đã có roadmap
-                      </span>
-                    )}
-                  </CardTitle>
-                  <CardDescription>
-                    Tạo lúc {new Date(prep.created_at).toLocaleString('vi-VN')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/preparations/${prep.id}/jd`}>
-                      <FileText className="mr-1 size-4" />
-                      JD
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/preparations/${prep.id}/memory-scan`}>
-                      <FileText className="mr-1 size-4" />
-                      Memory Scan
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/preparations/${prep.id}/roadmap`}>
-                      <ListTodo className="mr-1 size-4" />
-                      Roadmap
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/preparations/${prep.id}/self-check`}>
-                      <MessageCircleQuestion className="mr-1 size-4" />
-                      Self-check
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
+              <Link to={`/preparations/${prep.id}/jd`} className="block">
+                <Card className="rounded-lg border p-3 shadow-none transition-colors hover:bg-muted/40">
+                  <CardHeader className="flex-row items-center justify-between gap-3 border-0 p-0">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-baseline gap-2">
+                        <CardTitle className="truncate text-sm font-medium leading-tight">
+                          {prep.company_name?.trim() || `Chuẩn bị #${prep.id}`}
+                        </CardTitle>
+                        {prep.status === 'roadmap_ready' && (
+                          <span className="shrink-0 text-[10px] font-normal text-muted-foreground">
+                            Đã có roadmap
+                          </span>
+                        )}
+                      </div>
+                      <CardDescription className="truncate text-xs leading-snug text-muted-foreground">
+                        {[prep.job_title?.trim(), `Tạo ${new Date(prep.created_at).toLocaleDateString('vi-VN')}`]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                </Card>
+              </Link>
             </li>
           ))}
         </ul>
       )}
 
-      <Button asChild variant="ghost">
-        <Link to="/">Về Dashboard</Link>
-      </Button>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   profileSchema,
@@ -41,6 +42,7 @@ const MAX_CV_SIZE_MB = 10
 
 export function ProfilePage() {
   const { t } = useTranslation()
+  const setPageTitle = useSetPageTitle()
   const { data: user, isLoading: isLoadingUser } = useGetUserInfoQuery()
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
   const [uploadCv, { isLoading: isUploading }] = useUploadCvMutation()
@@ -76,6 +78,10 @@ export function ProfilePage() {
       experience_years: 0,
     },
   })
+
+  useEffect(() => {
+    setPageTitle(t('profile.title'), t('profile.subtitle'))
+  }, [setPageTitle, t])
 
   // Reset form when user data loads (including after CV upload + LLM auto-fill)
   useEffect(() => {
@@ -201,11 +207,6 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t('profile.title')}</h1>
-        <p className="text-muted-foreground">{t('profile.subtitle')}</p>
-      </div>
-
       {/* Profile Form Card */}
       <Card>
         <CardHeader>

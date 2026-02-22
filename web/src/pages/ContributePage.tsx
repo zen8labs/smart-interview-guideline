@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import {
   Card,
   CardContent,
@@ -139,7 +140,15 @@ function ContributionDetailSheet({ contribution }: { contribution: Contribution;
 
 export function ContributePage() {
   const [searchParams] = useSearchParams()
+  const setPageTitle = useSetPageTitle()
   const preparationIdParam = searchParams.get('preparation_id')
+
+  useEffect(() => {
+    setPageTitle(
+      'Đóng góp thông tin phỏng vấn',
+      'Chia sẻ JD, tên công ty, câu hỏi và câu trả lời sau cuộc phỏng vấn để hệ thống hỗ trợ chuẩn bị tốt hơn cho mọi người.',
+    )
+  }, [setPageTitle])
 
   const [companyId, setCompanyId] = useState<number | ''>('')
   const [newCompanyName, setNewCompanyName] = useState('')
@@ -234,16 +243,6 @@ export function ContributePage() {
 
   return (
     <div className="mx-auto w-full space-y-8">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-          Đóng góp thông tin phỏng vấn
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Chia sẻ JD, tên công ty, câu hỏi và câu trả lời sau cuộc phỏng vấn để hệ thống
-          hỗ trợ chuẩn bị tốt hơn cho mọi người.
-        </p>
-      </div>
-
       {showForm && (
         <Card>
           <CardHeader className="space-y-1.5">

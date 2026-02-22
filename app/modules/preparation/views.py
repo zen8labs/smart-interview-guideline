@@ -492,15 +492,35 @@ async def list_my_preparations(
     session: DBSession,
     current_user: CurrentUser,
 ):
-    """Danh sách preparations của user (mới nhất trước)."""
+    """Danh sách preparations của user (mới nhất trước). Trả về kèm company_name, job_title từ JD analysis nếu có."""
     result = await session.exec(
-        select(Preparation)
+        select(Preparation, JDAnalysis)
+        .join(JDAnalysis, Preparation.jd_analysis_id == JDAnalysis.id)
         .where(Preparation.user_id == current_user.id)
         .order_by(Preparation.created_at.desc())
         .limit(50)
     )
-    items = result.all()
-    return [PreparationResponse.model_validate(p) for p in items]
+    rows = result.all()
+    out = []
+    for prep, jd in rows:
+        meta = (jd.extracted_keywords or {}).get("meta") or {}
+        company_name = meta.get("company_name") if isinstance(meta.get("company_name"), str) else None
+        job_title = meta.get("job_title") if isinstance(meta.get("job_title"), str) else None
+        out.append(
+            PreparationResponse(
+                id=prep.id,
+                user_id=prep.user_id,
+                jd_analysis_id=prep.jd_analysis_id,
+                status=prep.status,
+                roadmap_id=prep.roadmap_id,
+                knowledge_areas=prep.knowledge_areas or [],
+                last_memory_scan_result=prep.last_memory_scan_result,
+                created_at=prep.created_at,
+                company_name=company_name,
+                job_title=job_title,
+            )
+        )
+    return out
 
 
 @router.post("", response_model=PreparationResponse)

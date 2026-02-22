@@ -27,6 +27,9 @@ export interface PreparationItem {
   knowledge_areas?: string[]
   last_memory_scan_result?: LastMemoryScanResult | null
   created_at: string
+  /** Từ JD analysis meta (chỉ có khi list preparations) */
+  company_name?: string | null
+  job_title?: string | null
 }
 
 export interface MemoryScanQuestion {

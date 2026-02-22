@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { useGetPracticeQuestionsQuery, useSubmitPracticeAnswersMutation } from '@/store/api/endpoints/practiceQuestionsApi'
 import { QuestionCard } from '@/components/QuestionCard'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ const MODE = 'memory_scan'
 
 export function AssessmentPage() {
   const navigate = useNavigate()
+  const setPageTitle = useSetPageTitle()
   const { data: questions = [], isLoading } = useGetPracticeQuestionsQuery({
     mode: MODE,
     limit: 10,
@@ -31,6 +33,10 @@ export function AssessmentPage() {
   const total = questions.length
   const answeredCount = Object.keys(answers).length
   const canSubmit = total > 0 && answeredCount === total
+
+  useEffect(() => {
+    setPageTitle('Memory Scan', null)
+  }, [setPageTitle])
 
   const handleSelect = useCallback((questionId: number, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
@@ -127,8 +133,7 @@ export function AssessmentPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">Memory Scan</h1>
+      <div className="flex items-center justify-end">
         <span className="text-sm text-muted-foreground">
           Question {currentIndex + 1} of {total}
         </span>

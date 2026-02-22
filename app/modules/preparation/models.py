@@ -67,6 +67,9 @@ class PreparationResponse(BaseModel):
     knowledge_areas: list[str] = []
     last_memory_scan_result: dict[str, Any] | None = None
     created_at: datetime
+    # Từ JD analysis (meta), có khi list preparations
+    company_name: str | None = None
+    job_title: str | None = None
 
     model_config = {"from_attributes": True}
 

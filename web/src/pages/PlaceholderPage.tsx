@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -5,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { useSetPageTitle } from '@/contexts/PageTitleContext'
 import { Construction } from 'lucide-react'
 
 interface PlaceholderPageProps {
@@ -16,13 +18,14 @@ export function PlaceholderPage({
   title,
   description = 'This feature is coming soon. Stay tuned!',
 }: PlaceholderPageProps) {
+  const setPageTitle = useSetPageTitle()
+
+  useEffect(() => {
+    setPageTitle(title, description)
+  }, [setPageTitle, title, description])
+
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="mb-6 space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground">{description}</p>
-      </div>
-
       <Card className="border-dashed">
         <CardHeader className="items-center text-center">
           <div className="rounded-full bg-muted p-4 mb-2">
