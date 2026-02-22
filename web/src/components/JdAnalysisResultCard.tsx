@@ -8,35 +8,78 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Building2, MapPin, Briefcase, Calendar } from 'lucide-react'
+import { CheckCircle2, Building2, MapPin, Briefcase, Calendar, Target, Layers, Hash } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type {
   SkillItem,
-  DomainItem,
-  KeywordItem,
   ExtractedKeywords,
   JdMeta,
   ProfileFit,
 } from '@/store/api/endpoints/analysisApi'
 
-function formatSkill(s: string | SkillItem): string {
-  if (typeof s === 'string') return s
-  const parts = [s.name]
-  if (s.level) parts.push(s.level)
-  if (s.constraints) parts.push(s.constraints)
-  if (parts.length === 1) return s.name
-  return `${s.name} (${parts.slice(1).join(', ')})`
+/** Mức ưu tiên để sắp xếp; tag đơn giản với màu nhẹ */
+const SKILL_LEVEL_CONFIG: Record<
+  string,
+  { label: string; priority: 1 | 2 | 3; tagClass: string }
+> = {
+  required: { label: 'Bắt buộc', priority: 1, tagClass: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' },
+  expert: { label: 'Chuyên sâu', priority: 1, tagClass: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' },
+  preferred: { label: 'Ưu tiên', priority: 2, tagClass: 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' },
+  proficient: { label: 'Thành thạo', priority: 2, tagClass: 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' },
+  'nice-to-have': { label: 'Có thì tốt', priority: 3, tagClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400' },
+  basic: { label: 'Cơ bản', priority: 3, tagClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400' },
 }
 
-function formatDomain(d: string | DomainItem): string {
-  if (typeof d === 'string') return d
-  if (d.description) return `${d.name} — ${d.description}`
-  return d.name
+function normalizeSkillLevel(level: string | null | undefined): string {
+  if (!level) return ''
+  const lower = level.toLowerCase().replace(/\s+/g, '-')
+  if (SKILL_LEVEL_CONFIG[lower]) return lower
+  if (lower.includes('required') || lower.includes('bắt buộc')) return 'required'
+  if (lower.includes('prefer') || lower.includes('ưu tiên')) return 'preferred'
+  if (lower.includes('nice') || lower.includes('tốt') || lower.includes('khá muốn') || lower.includes('muốn')) return 'nice-to-have'
+  return lower
 }
 
-function formatKeyword(k: string | KeywordItem): string {
-  if (typeof k === 'string') return k
-  if (k.context) return `${k.term} (${k.context})`
-  return k.term
+const DEFAULT_TAG_CLASS = 'bg-slate-100 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400'
+
+function SkillRow({ skill }: { skill: string | SkillItem }) {
+  const item: SkillItem = typeof skill === 'string' ? { name: skill } : skill
+  const levelKey = normalizeSkillLevel(item.level)
+  const levelConfig = levelKey ? SKILL_LEVEL_CONFIG[levelKey] : null
+  const levelLabel = levelConfig?.label ?? (item.level ? String(item.level) : null)
+  const tagClass = levelConfig?.tagClass ?? DEFAULT_TAG_CLASS
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border bg-background/80 px-3 py-2 text-sm hover:bg-muted/30 transition-colors">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold text-foreground">{item.name}</span>
+        {levelLabel && (
+          <span
+            className={cn(
+              'shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium',
+              tagClass
+            )}
+          >
+            {levelLabel}
+          </span>
+        )}
+        {item.constraints && (
+          <span className="text-muted-foreground text-xs font-medium">
+            {item.constraints}
+          </span>
+        )}
+      </div>
+      {item.notes && (
+        <p className="text-muted-foreground text-xs leading-snug">{item.notes}</p>
+      )}
+    </div>
+  )
+}
+
+function skillSortOrder(s: string | SkillItem): number {
+  if (typeof s === 'string') return 3
+  const key = normalizeSkillLevel(s.level)
+  const config = key ? SKILL_LEVEL_CONFIG[key] : null
+  return config?.priority ?? 3
 }
 
 const PROFILE_FIT_LABELS: Record<number, string> = {
@@ -116,7 +159,7 @@ export function JdAnalysisResultCard({
           Đã trích xuất kỹ năng, domain và yêu cầu từ JD. Bạn có thể xem lại và tiếp tục các bước sau.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {extracted_keywords.meta && Object.keys(extracted_keywords.meta).length > 0 ? (
           <JdMetaBlock meta={extracted_keywords.meta} />
         ) : null}
@@ -124,37 +167,68 @@ export function JdAnalysisResultCard({
           <ProfileFitBadge fit={extracted_keywords.profile_fit} />
         ) : null}
         {extracted_keywords.requirements_summary ? (
-          <div>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Tóm tắt yêu cầu</p>
-            <p className="text-sm whitespace-pre-wrap">{extracted_keywords.requirements_summary}</p>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+              Tóm tắt yêu cầu
+            </p>
+            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+              {extracted_keywords.requirements_summary}
+            </p>
           </div>
         ) : null}
         {extracted_keywords.skills?.length ? (
           <div>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Skills (mức độ / ràng buộc)</p>
-            <ul className="text-sm list-disc list-inside space-y-0.5">
-              {extracted_keywords.skills.map((s, i) => (
-                <li key={i}>{formatSkill(s)}</li>
-              ))}
-            </ul>
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Target className="size-4 text-green-600 dark:text-green-500" />
+              Kỹ năng cốt lõi JD yêu cầu
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[...extracted_keywords.skills]
+                .sort((a, b) => skillSortOrder(a) - skillSortOrder(b))
+                .map((s, i) => (
+                  <SkillRow key={i} skill={s} />
+                ))}
+            </div>
           </div>
         ) : null}
         {extracted_keywords.domains?.length ? (
           <div>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Domains</p>
-            <ul className="text-sm list-disc list-inside space-y-0.5">
-              {extracted_keywords.domains.map((d, i) => (
-                <li key={i}>{formatDomain(d)}</li>
-              ))}
-            </ul>
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Layers className="size-3.5" />
+              Lĩnh vực
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {extracted_keywords.domains.map((d, i) => {
+                const name = typeof d === 'string' ? d : d.name
+                const desc = typeof d === 'string' ? null : d.description
+                return (
+                  <Badge key={i} variant="secondary" className="font-normal">
+                    {name}
+                    {desc ? ` — ${desc}` : ''}
+                  </Badge>
+                )
+              })}
+            </div>
           </div>
         ) : null}
         {extracted_keywords.keywords?.length ? (
           <div>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Keywords</p>
-            <p className="text-sm">
-              {extracted_keywords.keywords.map(formatKeyword).join(', ')}
-            </p>
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Hash className="size-3.5" />
+              Từ khóa
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {extracted_keywords.keywords.map((k, i) => {
+                const term = typeof k === 'string' ? k : k.term
+                const ctx = typeof k === 'string' ? null : k.context
+                return (
+                  <span key={i} className="rounded-md bg-muted/70 px-2 py-0.5 text-xs text-muted-foreground">
+                    {term}
+                    {ctx ? ` (${ctx})` : ''}
+                  </span>
+                )
+              })}
+            </div>
           </div>
         ) : null}
         <div className="flex flex-wrap gap-2 pt-2">
