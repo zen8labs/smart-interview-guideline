@@ -8,6 +8,18 @@
     "profile": "Hồ sơ",
     "settings": "Cài đặt"
   },
+  "settings": {
+    "title": "Cài đặt",
+    "subtitle": "Quản lý tùy chọn tài khoản.",
+    "preferences": "Tùy chọn",
+    "preferencesDesc": "Ngôn ngữ và các tùy chọn khác.",
+    "language": "Ngôn ngữ",
+    "languageDesc": "Giao diện và nội dung do AI tạo sẽ dùng ngôn ngữ này.",
+    "save": "Lưu",
+    "saving": "Đang lưu...",
+    "saved": "Đã lưu cài đặt.",
+    "saveFailed": "Lưu cài đặt thất bại."
+  },
   "profile": {
     "title": "Cài đặt hồ sơ",
     "subtitle": "Quản lý hồ sơ chuyên nghiệp để được gợi ý chuẩn bị phỏng vấn phù hợp.",

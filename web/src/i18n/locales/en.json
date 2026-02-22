@@ -8,6 +8,18 @@
     "profile": "Profile",
     "settings": "Settings"
   },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your account preferences.",
+    "preferences": "Preferences",
+    "preferencesDesc": "Language and other app preferences.",
+    "language": "Language",
+    "languageDesc": "App and AI-generated content will use this language.",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Settings saved.",
+    "saveFailed": "Failed to save settings."
+  },
   "profile": {
     "title": "Profile Settings",
     "subtitle": "Manage your professional profile to get tailored interview preparation.",

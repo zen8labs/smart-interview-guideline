@@ -14,7 +14,6 @@ import {
   useLazyGetCvFileQuery,
   useDeleteCvMutation,
 } from '../store/api/endpoints/profileApi'
-import { SUPPORTED_LANGUAGES } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -75,7 +74,6 @@ export function ProfilePage() {
       education_summary: '',
       role: '',
       experience_years: 0,
-      preferred_language: 'en',
     },
   })
 
@@ -91,7 +89,6 @@ export function ProfilePage() {
         education_summary: user.education_summary ?? '',
         role: user.role ?? '',
         experience_years: user.experience_years ?? 0,
-        preferred_language: user.preferred_language ?? 'en',
       })
     }
   }, [user, reset])
@@ -109,7 +106,6 @@ export function ProfilePage() {
           education_summary: data.education_summary || null,
           role: data.role,
           experience_years: data.experience_years,
-          preferred_language: data.preferred_language || null,
         }).unwrap()
         setProfileMessage({ type: 'success', text: t('profile.updated') })
       } catch (err: unknown) {
@@ -229,32 +225,6 @@ export function ProfilePage() {
                 <AlertDescription>{profileMessage.text}</AlertDescription>
               </Alert>
             )}
-
-            <div className="space-y-2">
-              <Label htmlFor="preferred_language">{t('profile.language')}</Label>
-              <Controller
-                name="preferred_language"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={field.value || 'en'}
-                    onValueChange={(v) => field.onChange(v)}
-                  >
-                    <SelectTrigger id="preferred_language">
-                      <SelectValue placeholder={t('profile.language')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SUPPORTED_LANGUAGES.map((lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <p className="text-xs text-muted-foreground">{t('profile.languageDesc')}</p>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="full_name">{t('profile.fullName')}</Label>

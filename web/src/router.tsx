@@ -16,6 +16,7 @@ import { PreparationRoadmapPage } from './pages/PreparationRoadmapPage'
 import { PreparationSelfCheckPage } from './pages/PreparationSelfCheckPage'
 import { ContributePage } from './pages/ContributePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminProtectedRoute } from './components/AdminProtectedRoute'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
@@ -119,12 +120,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'settings',
-        element: (
-          <PlaceholderPage
-            title="Settings"
-            description="Configure your account preferences and notifications"
-          />
-        ),
+        element: <SettingsPage />,
       },
     ],
   },
