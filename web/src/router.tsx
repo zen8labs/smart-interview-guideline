@@ -14,7 +14,6 @@ import { PreparationJdAnalysisPage } from './pages/PreparationJdAnalysisPage'
 import { PreparationMemoryScanPage } from './pages/PreparationMemoryScanPage'
 import { PreparationRoadmapPage } from './pages/PreparationRoadmapPage'
 import { PreparationSelfCheckPage } from './pages/PreparationSelfCheckPage'
-import { RoadmapPage } from './pages/RoadmapPage'
 import { ContributePage } from './pages/ContributePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -100,10 +99,6 @@ export const router = createBrowserRouter([
             element: <PreparationSelfCheckPage />,
           },
         ],
-      },
-      {
-        path: 'knowledge',
-        element: <RoadmapPage />,
       },
       {
         path: 'contribute',

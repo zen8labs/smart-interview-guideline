@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   FileText,
-  BookOpen,
   Users,
   Settings,
   User,
@@ -31,12 +30,6 @@ const mainNavItems: NavItem[] = [
     icon: FileText,
     href: '/preparations',
     description: 'Nhập JD và bắt đầu chuẩn bị phỏng vấn',
-  },
-  {
-    label: 'Knowledge Base',
-    icon: BookOpen,
-    href: '/knowledge',
-    description: 'Visual learning cards',
   },
   {
     label: 'Community',

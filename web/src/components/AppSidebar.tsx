@@ -5,7 +5,6 @@ import { useSidebar } from '@/hooks/useSidebar'
 import {
   LayoutDashboard,
   FileText,
-  BookOpen,
   Users,
   Settings,
   User,
@@ -31,7 +30,6 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { labelKey: 'dashboard', icon: LayoutDashboard, href: '/' },
   { labelKey: 'interviewPrep', icon: FileText, href: '/preparations' },
-  { labelKey: 'knowledgeBase', icon: BookOpen, href: '/knowledge' },
   { labelKey: 'contribute', icon: Gift, href: '/contribute' },
   { labelKey: 'community', icon: Users, href: '/community' },
 ]

@@ -137,15 +137,6 @@ export function DashboardPage() {
             ctaText={t('dashboard.getStarted')}
           />
           <QuickActionCard
-            title={t('dashboard.knowledgeBase')}
-            description={t('dashboard.knowledgeBaseDesc')}
-            icon={<BookOpen className="size-5" />}
-            href="/knowledge"
-            badge={t('dashboard.badgeLearn')}
-            badgeVariant="outline"
-            ctaText={t('dashboard.getStarted')}
-          />
-          <QuickActionCard
             title={t('dashboard.community')}
             description={t('dashboard.communityDesc')}
             icon={<Users className="size-5" />}
@@ -186,7 +177,7 @@ export function DashboardPage() {
             </CardContent>
           </Card>
           <Card className="transition-shadow hover:shadow-md">
-            <Link to="/knowledge">
+            <Link to="/preparations">
               <CardContent className="flex items-center gap-4 p-6">
                 <div className="rounded-lg bg-green-500/10 p-2.5">
                   <BookOpen className="size-5 text-green-500" />
