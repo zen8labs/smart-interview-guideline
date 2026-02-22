@@ -29,6 +29,7 @@ import {
   GraduationCap,
   BookOpenIcon,
   BookOpen as BookOpenIconAlt,
+  MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type {
@@ -342,6 +343,12 @@ function RoadmapListItem({
   )
 }
 
+const CHATGPT_BASE = 'https://chatgpt.com/?prompt='
+
+function buildChatGPTPrompt(topic: string): string {
+  return `I'm preparing for a technical interview. Help me learn and practice: ${topic}. Explain key concepts clearly, give short examples if relevant, and suggest practice or common interview questions for this topic.`
+}
+
 function RoadmapDetailSheet({
   task,
   onComplete,
@@ -351,12 +358,13 @@ function RoadmapDetailSheet({
   onComplete: () => void
   isCompleting: boolean
 }) {
+  const chatGPTUrl = `${CHATGPT_BASE}${encodeURIComponent(buildChatGPTPrompt(task.title))}&temporary-chat=true`
   return (
     <>
       <SheetHeader className="shrink-0 border-b px-6 py-4">
         <SheetTitle className="text-left text-lg">{task.title}</SheetTitle>
       </SheetHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
         <div className="max-w-none text-sm">
           {task.content_type === 'markdown' ? (
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -375,6 +383,18 @@ function RoadmapDetailSheet({
             />
           </div>
         )}
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <a
+            href={chatGPTUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            <MessageSquare className="size-4 shrink-0" />
+            Hỏi ChatGPT về chủ đề này
+            <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
+          </a>
+        </div>
         {task.meta?.references && task.meta.references.length > 0 && (
           <div className="mt-6">
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">

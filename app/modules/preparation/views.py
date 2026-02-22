@@ -31,6 +31,7 @@ from app.modules.preparation.models import (
 )
 from app.modules.preparation.services import (
     create_roadmap_after_memory_scan,
+    derive_knowledge_areas_from_jd_and_profile,
     evaluate_memory_scan_with_llm,
     generate_questions_with_ai,
     generate_self_check_questions,
@@ -139,6 +140,19 @@ async def get_memory_scan_questions(
     if prep.memory_scan_questions:
         return _questions_for_display(prep.memory_scan_questions)
 
+    # Xác định vùng kiến thức từ JD + profile trước (dùng thống nhất cho memory scan, roadmap, self-check)
+    if not prep.knowledge_areas:
+        prep.knowledge_areas = await derive_knowledge_areas_from_jd_and_profile(
+            jd_analysis=jd,
+            user_role=current_user.role,
+            user_experience_years=current_user.experience_years,
+            preferred_language=current_user.preferred_language,
+        )
+        session.add(prep)
+        await session.flush()
+
+    knowledge_areas = prep.knowledge_areas or []
+
     if source == "warehouse":
         questions = await get_questions_from_warehouse(
             session, skills=skills, tags=tags, limit=8
@@ -150,6 +164,7 @@ async def get_memory_scan_questions(
             user_role=current_user.role,
             limit=8,
             preferred_language=current_user.preferred_language,
+            knowledge_areas=knowledge_areas if knowledge_areas else None,
         )
     else:
         questions = await get_questions_from_warehouse(
@@ -162,6 +177,7 @@ async def get_memory_scan_questions(
                 user_role=current_user.role,
                 limit=8,
                 preferred_language=current_user.preferred_language,
+                knowledge_areas=knowledge_areas if knowledge_areas else None,
             )
     if not questions:
         questions = await generate_questions_with_ai(
@@ -170,6 +186,7 @@ async def get_memory_scan_questions(
             user_role=current_user.role,
             limit=8,
             preferred_language=current_user.preferred_language,
+            knowledge_areas=knowledge_areas if knowledge_areas else None,
         )
 
     prep.memory_scan_questions = questions
@@ -183,15 +200,25 @@ async def get_memory_scan_questions(
 def _compute_knowledge_assessment(
     knowledge_areas: list[str],
     result_flags: list[bool],
+    memory_scan_questions: list[dict] | None = None,
 ) -> list[dict]:
-    """Compute per-area level (5-scale) from round-robin question assignment."""
+    """
+    Compute per-area level (5-scale).
+    Nếu câu hỏi có knowledge_area_index thì nhóm theo index; không thì round-robin theo thứ tự câu.
+    """
     if not knowledge_areas or not result_flags:
         return []
     n_areas = len(knowledge_areas)
     area_correct: list[int] = [0] * n_areas
     area_total: list[int] = [0] * n_areas
+    questions = memory_scan_questions or []
     for i, is_correct in enumerate(result_flags):
         idx = i % n_areas
+        if i < len(questions):
+            q = questions[i]
+            area_idx = q.get("knowledge_area_index")
+            if isinstance(area_idx, int) and 0 <= area_idx < n_areas:
+                idx = area_idx
         area_total[idx] += 1
         if is_correct:
             area_correct[idx] += 1
@@ -264,8 +291,11 @@ async def submit_memory_scan(
             user_role=current_user.role,
             user_experience_years=current_user.experience_years,
             preferred_language=current_user.preferred_language,
+            preparation_knowledge_areas=prep.knowledge_areas or None,
         )
-        knowledge_assessment = _compute_knowledge_assessment(knowledge_areas, result_flags)
+        knowledge_assessment = _compute_knowledge_assessment(
+            knowledge_areas, result_flags, prep.memory_scan_questions
+        )
         kw = jd.extracted_keywords or {}
         skills, domains, keywords = normalize_extracted_keyword_names(kw)
         jd_summary = f"Skills: {skills}. Domains: {domains}. Keywords: {keywords}."
@@ -371,6 +401,7 @@ async def create_roadmap(
         user_role=current_user.role,
         user_experience_years=current_user.experience_years,
         preferred_language=current_user.preferred_language,
+        preparation_knowledge_areas=prep.knowledge_areas or None,
     )
     prep.roadmap_id = roadmap.id
     prep.status = PreparationStatus.ROADMAP_READY
@@ -451,6 +482,7 @@ async def get_self_check_questions(
         jd_analysis=jd,
         limit=12,
         preferred_language=current_user.preferred_language,
+        knowledge_areas=prep.knowledge_areas or None,
     )
     return [SelfCheckQuestionDisplay(id=q["id"], question_text=q["question_text"]) for q in questions]
 

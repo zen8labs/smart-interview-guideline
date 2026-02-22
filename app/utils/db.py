@@ -248,6 +248,18 @@ class Database:
                 END IF;
             END $$;
         """))
+        # preparations.knowledge_areas (JSON array): vùng kiến thức từ JD+profile, dùng cho memory scan / roadmap / self-check
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'preparations' AND column_name = 'knowledge_areas'
+                ) THEN
+                    ALTER TABLE preparations ADD COLUMN knowledge_areas JSONB DEFAULT '[]';
+                END IF;
+            END $$;
+        """))
 
     async def close(self) -> None:
         """

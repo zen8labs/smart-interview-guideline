@@ -31,7 +31,10 @@ class Preparation(SQLModel, table=True):
     jd_analysis_id: int = SQLField(foreign_key="jd_analyses.id", index=True)
     status: str = SQLField(max_length=50, default=PreparationStatus.MEMORY_SCAN_READY, index=True)
 
-    # Bước 2: Bộ câu hỏi memory scan (từ warehouse hoặc AI), JSON hoá
+    # Vùng kiến thức xác định từ JD + profile (trước memory scan); dùng thống nhất cho memory scan, roadmap, self-check
+    knowledge_areas: list[str] = SQLField(sa_column=Column(JSON), default_factory=list)
+
+    # Bước 2: Bộ câu hỏi memory scan (từ warehouse hoặc AI), mỗi câu có thể có "knowledge_area" index/name
     memory_scan_questions: list[dict[str, Any]] = SQLField(
         sa_column=Column(JSON), default_factory=list
     )
@@ -61,6 +64,7 @@ class PreparationResponse(BaseModel):
     jd_analysis_id: int
     status: str
     roadmap_id: int | None
+    knowledge_areas: list[str] = []
     last_memory_scan_result: dict[str, Any] | None = None
     created_at: datetime
 

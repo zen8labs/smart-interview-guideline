@@ -25,6 +25,84 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 logger = logging.getLogger(__name__)
 
 
+async def derive_knowledge_areas_from_jd_and_profile(
+    *,
+    jd_analysis: JDAnalysis,
+    user_role: str | None = None,
+    user_experience_years: int | None = None,
+    preferred_language: str | None = None,
+) -> list[str]:
+    """
+    Xác định các vùng kiến thức cần có từ JD và profile người dùng (trước memory scan).
+    Dùng chung cho: tạo câu hỏi memory scan, roadmap, và self-check — đảm bảo thống nhất.
+    Trả về 3–8 tên vùng kiến thức (strings).
+    """
+    if not settings.openai.api_key:
+        kw = jd_analysis.extracted_keywords or {}
+        skills, domains, keywords = normalize_extracted_keyword_names(kw)
+        return (skills[:4] + domains[:3] + keywords[:2]) or [
+            "Core concepts",
+            "Technical skills",
+            "Best practices",
+        ]
+
+    kw = jd_analysis.extracted_keywords or {}
+    skills, domains, keywords = normalize_extracted_keyword_names(kw)
+    requirements_summary = kw.get("requirements_summary") or ""
+    jd_summary = f"Skills: {skills}. Domains: {domains}. Keywords: {keywords}."
+    if requirements_summary:
+        jd_summary += f" Key requirements: {requirements_summary}"
+    profile = f"Role: {user_role or 'not set'}. Experience: {user_experience_years or 0} years."
+
+    lang_instruction = get_language_instruction(preferred_language)
+    client = get_openai_client()
+    prompt = f"""You are an interview coach. Based ONLY on:
+1) Job description: {jd_summary}
+2) Candidate profile: {profile}
+
+Identify 3 to 8 knowledge areas (vùng kiến thức) that this candidate should be assessed on and may need to improve for this job. These areas will be used to generate memory scan questions, learning roadmap, and self-check questions — so they must be concrete, testable topics (e.g. "REST API design", "SQL optimization", "Python async", "System design basics").
+{lang_instruction}
+Return ONLY a valid JSON array of short topic names (strings). No explanation."""
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        if not content:
+            return _fallback_knowledge_areas(jd_analysis)
+        if content.startswith("```"):
+            lines = content.split("\n")
+            content = "\n".join(
+                line for line in lines
+                if not (line.strip().startswith("```") and len(line.strip()) <= 5)
+            ).strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[-1]
+        data = json.loads(content)
+        if not isinstance(data, list):
+            return _fallback_knowledge_areas(jd_analysis)
+        areas = [str(x).strip() for x in data if x][:8]
+        return areas if areas else _fallback_knowledge_areas(jd_analysis)
+    except Exception as e:
+        logger.exception("derive_knowledge_areas_from_jd_and_profile failed: %s", e)
+        return _fallback_knowledge_areas(jd_analysis)
+
+
+def _fallback_knowledge_areas(jd_analysis: JDAnalysis) -> list[str]:
+    """Fallback khi LLM không có hoặc lỗi."""
+    kw = jd_analysis.extracted_keywords or {}
+    skills, domains, keywords = normalize_extracted_keyword_names(kw)
+    return (skills[:4] + domains[:3] + keywords[:2]) or [
+        "Core concepts",
+        "Technical skills",
+        "Best practices",
+    ]
+
+
 async def analyze_knowledge_gaps(
     *,
     user_role: str | None,
@@ -114,23 +192,33 @@ async def generate_roadmap_item_markdown(
 
     lang_instruction = get_language_instruction(preferred_language)
     client = get_openai_client()
-    prompt = f"""You are a technical coach. Create a single learning note (roadmap item) for this topic: "{knowledge_area}".
+    prompt = f"""You are a technical coach. Write a substantive learning note (roadmap item) for: "{knowledge_area}".
 Job context: {jd_skills_summary}
+
+The note must provide CLEAR, USEFUL INFORMATION — not just keywords for the reader to search. Structure it as follows:
+
+1. **Overview** (2-3 sentences): What this topic is and why it matters for the role. No vague phrases; be specific.
+
+2. **Key concepts** (bulleted or numbered): Each item must include a SHORT EXPLANATION (1-2 sentences), not just the term. Example: "**REST**: Architecture style where the server exposes resources via URLs; client uses HTTP methods (GET, POST, etc.)."
+
+3. **What to learn / Practice**: Concrete steps or sub-topics with brief guidance (what to read, what to try). Include 1-2 short code snippets if relevant (syntax-highlightable).
+
+4. **Common interview angles**: 2-3 typical questions or topics interviewers ask about this area. One sentence each is enough.
+
+5. **References**: A section (e.g. "Tài liệu tham khảo" or "References") with 2-4 real links. Format: [Title](URL). Prefer official docs, dev.to, realpython.com, MDN, YouTube, Coursera.
 
 Requirements:
 - {lang_instruction}
-- Use Markdown: headings (##, ###), bullet lists, code blocks if relevant, bold for key terms.
-- Length: about 150-400 words. Include what to learn, key points, and 1-2 short code examples if useful.
-- At the end, add a references section (e.g. "Tài liệu tham khảo" in Vietnamese or "References" in English) with 2-4 real links. Format each as: [Title](URL). Suggest official docs, tech blogs (e.g. dev.to, realpython.com), YouTube, or Coursera when relevant.
-
-Return ONLY the markdown content, no JSON wrapper."""
+- Use Markdown: ## and ### headings, bullet lists, code blocks where useful, **bold** for terms.
+- Length: 250-500 words so the reader gets real value without having to "go research" blindly.
+- Return ONLY the markdown content, no JSON wrapper or commentary."""
 
     try:
         response = await client.chat.completions.create(
             model=settings.openai.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
-            max_tokens=1500,
+            max_tokens=2500,
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
@@ -200,8 +288,13 @@ async def generate_questions_with_ai(
     user_role: str | None,
     limit: int = 8,
     preferred_language: str | None = None,
+    knowledge_areas: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Tạo bộ câu hỏi memory scan on-the-fly bằng AI (dựa trên JD + user)."""
+    """
+    Tạo bộ câu hỏi memory scan bằng AI.
+    Nếu có knowledge_areas: sinh câu hỏi phủ đều các vùng (1–2 câu/vùng), mỗi câu gắn knowledge_area_index.
+    Nếu không: sinh theo JD + user như cũ.
+    """
     if not settings.openai.api_key:
         return []
 
@@ -212,7 +305,27 @@ async def generate_questions_with_ai(
 
     lang_instruction = get_language_instruction(preferred_language)
     client = get_openai_client()
-    prompt = f"""Generate exactly {limit} short multiple-choice or true/false questions to assess a candidate's current knowledge for this job. Context: {context}
+
+    if knowledge_areas:
+        # Sinh câu hỏi theo từng vùng kiến thức — đảm bảo phủ đều và gắn area
+        areas_text = ", ".join(knowledge_areas)
+        per_area = max(1, limit // len(knowledge_areas))
+        prompt = f"""Generate multiple-choice or true/false questions to assess the candidate for this job. Context: {context}
+
+Knowledge areas to cover (generate about {per_area} question(s) per area): {areas_text}
+
+For each question, the topic must clearly belong to one of these knowledge areas.
+{lang_instruction}
+Return ONLY a valid JSON array. Each item must have:
+- "question_text": string
+- "question_type": "multiple_choice" or "true_false"
+- "options": object (for multiple_choice: "choices" array and "correct_answer"; for true_false: "correct_answer": "true" or "false")
+- "correct_answer": string
+- "knowledge_area": string (exactly one of: {json.dumps(knowledge_areas)})
+
+Total: about {min(limit, len(knowledge_areas) * per_area)} questions, spread across the areas."""
+    else:
+        prompt = f"""Generate exactly {limit} short multiple-choice or true/false questions to assess a candidate's current knowledge for this job. Context: {context}
 {lang_instruction}
 Return ONLY a valid JSON array. Each item must have:
 - "question_text": string
@@ -253,14 +366,22 @@ Example: [{{"question_text": "What is REST?", "question_type": "multiple_choice"
             q_type = item.get("question_type") or "multiple_choice"
             opts = item.get("options") or {}
             correct = item.get("correct_answer") or opts.get("correct_answer")
-            out.append({
+            area_name = item.get("knowledge_area") if knowledge_areas else None
+            area_idx = (
+                knowledge_areas.index(area_name) if area_name and knowledge_areas and area_name in knowledge_areas else None
+            )
+            q_out = {
                 "id": str(i),
                 "question_text": q_text,
                 "title": "",
                 "question_type": q_type,
                 "options": opts,
                 "correct_answer": correct,
-            })
+            }
+            if area_idx is not None:
+                q_out["knowledge_area_index"] = area_idx
+                q_out["knowledge_area"] = knowledge_areas[area_idx]
+            out.append(q_out)
         return out
     except Exception as e:
         logger.exception("AI question generation failed: %s", e)
@@ -272,9 +393,11 @@ async def generate_self_check_questions(
     jd_analysis: JDAnalysis,
     limit: int = 12,
     preferred_language: str | None = None,
+    knowledge_areas: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Tạo bộ câu hỏi giả lập phỏng vấn bằng LLM: câu hỏi mở có thể xuất hiện trong buổi phỏng vấn.
+    Nếu có knowledge_areas: sinh câu hỏi phủ các vùng kiến thức (thống nhất với memory scan và roadmap).
     Không phải trắc nghiệm, không chấm điểm — chỉ để user tự luyện trả lời.
     """
     if not settings.openai.api_key:
@@ -289,9 +412,12 @@ async def generate_self_check_questions(
 
     lang_instruction = get_language_instruction(preferred_language)
     client = get_openai_client()
+    areas_note = ""
+    if knowledge_areas:
+        areas_note = f"\nCover these knowledge areas (generate 1-2 questions per area): {', '.join(knowledge_areas)}."
     prompt = f"""You are an expert interviewer. Based on this job description context, generate {limit} realistic interview questions that could be asked in a real interview for this role.
 
-Context: {context}
+Context: {context}{areas_note}
 
 Requirements:
 - Questions must be OPEN-ENDED (no multiple choice). Examples: "Tell me about a time when...", "How would you approach...", "What is your experience with...", "Explain...", "Describe..."
@@ -490,11 +616,14 @@ async def get_knowledge_areas_for_assessment(
     user_role: str | None = None,
     user_experience_years: int | None = None,
     preferred_language: str | None = None,
+    preparation_knowledge_areas: list[str] | None = None,
 ) -> list[str]:
     """
     Get knowledge areas (for displaying per-area level) without creating roadmap.
-    Uses same LLM logic as create_roadmap_after_memory_scan.
+    Ưu tiên dùng preparation_knowledge_areas (đã xác định trước memory scan) để thống nhất với roadmap/self-check.
     """
+    if preparation_knowledge_areas:
+        return list(preparation_knowledge_areas)
     if settings.openai.api_key:
         areas = await analyze_knowledge_gaps(
             user_role=user_role,
@@ -523,11 +652,12 @@ async def create_roadmap_after_memory_scan(
     user_role: str | None = None,
     user_experience_years: int | None = None,
     preferred_language: str | None = None,
+    preparation_knowledge_areas: list[str] | None = None,
 ) -> tuple[Roadmap, list[str]]:
     """
-    Bước 3: Sau khi user nộp memory scan:
-    1) LLM phân tích profile + JD + kết quả scan → danh sách vùng kiến thức cần cải thiện.
-    2) Với mỗi vùng, gọi LLM tạo rich markdown content (roadmap item).
+    Bước 3: Sau khi user nộp memory scan.
+    Ưu tiên dùng preparation_knowledge_areas (đã xác định trước memory scan) để roadmap khớp với câu hỏi và self-check.
+    Với mỗi vùng kiến thức, tạo 1 roadmap item (markdown + references).
     """
     skills, domains, keywords = normalize_extracted_keyword_names(jd_analysis.extracted_keywords or {})
     kw = jd_analysis.extracted_keywords or {}
@@ -536,8 +666,8 @@ async def create_roadmap_after_memory_scan(
     if requirements_summary:
         jd_skills_summary += f" Key requirements: {requirements_summary}"
 
-    knowledge_areas: list[str] = []
-    if settings.openai.api_key:
+    knowledge_areas: list[str] = list(preparation_knowledge_areas) if preparation_knowledge_areas else []
+    if not knowledge_areas and settings.openai.api_key:
         knowledge_areas = await analyze_knowledge_gaps(
             user_role=user_role,
             user_experience_years=user_experience_years,

@@ -23,6 +23,8 @@ export interface PreparationItem {
   jd_analysis_id: number
   status: string
   roadmap_id: number | null
+  /** Vùng kiến thức xác định từ JD + profile; dùng thống nhất cho memory scan, roadmap, self-check */
+  knowledge_areas?: string[]
   last_memory_scan_result?: LastMemoryScanResult | null
   created_at: string
 }
