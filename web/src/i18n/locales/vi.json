@@ -85,7 +85,17 @@
     "badgeCore": "Cốt lõi",
     "badgeLearn": "Học",
     "badgeCrowd": "Cộng đồng",
-    "badgeQuiz": "Quiz"
+    "badgeQuiz": "Quiz",
+    "careerSummary": "Thông tin nghề nghiệp",
+    "careerSummaryDesc": "Vai trò và kinh nghiệm để cá nhân hóa chuẩn bị phỏng vấn.",
+    "editProfile": "Chỉnh hồ sơ",
+    "recentPreparations": "Chuẩn bị gần đây",
+    "recentPreparationsDesc": "Các lần chuẩn bị phỏng vấn mới nhất.",
+    "viewAll": "Xem tất cả",
+    "noPreparationsYet": "Chưa có lần chuẩn bị nào. Bắt đầu một lần để hiển thị tại đây.",
+    "todayTasks": "Công việc hôm nay",
+    "tasksDone": "nhiệm vụ đã làm",
+    "preparationsCount": "Lần chuẩn bị"
   },
   "common": {
     "loading": "Đang tải...",

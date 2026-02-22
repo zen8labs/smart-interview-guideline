@@ -85,7 +85,17 @@
     "badgeCore": "Core",
     "badgeLearn": "Learn",
     "badgeCrowd": "Crowd",
-    "badgeQuiz": "Quiz"
+    "badgeQuiz": "Quiz",
+    "careerSummary": "Career summary",
+    "careerSummaryDesc": "Your role and experience for personalized preparation.",
+    "editProfile": "Edit profile",
+    "recentPreparations": "Recent preparations",
+    "recentPreparationsDesc": "Your latest interview preparation sessions.",
+    "viewAll": "View all",
+    "noPreparationsYet": "No preparations yet. Start one to see it here.",
+    "todayTasks": "Today's tasks",
+    "tasksDone": "tasks done",
+    "preparationsCount": "Preparations"
   },
   "common": {
     "loading": "Loading...",
