@@ -27,6 +27,13 @@ export function UserMenu() {
     ? user.email.charAt(0).toUpperCase()
     : '?'
 
+  const displayLabel =
+    user?.email == null
+      ? 'Loading...'
+      : user.email.length > 20
+        ? `${user.email.slice(0, 17)}…`
+        : user.email
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -41,8 +48,8 @@ export function UserMenu() {
             </AvatarFallback>
           </Avatar>
           <div className="hidden flex-col items-start md:flex">
-            <span className="max-w-[150px] truncate text-sm font-medium">
-              {user?.email ?? 'Loading...'}
+            <span className="max-w-[140px] truncate text-sm font-medium" title={user?.email}>
+              {displayLabel}
             </span>
           </div>
           <ChevronsUpDown className="ml-1 hidden size-4 text-muted-foreground md:block" />
