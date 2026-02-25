@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { useGetUserInfoQuery } from '@/store/api/endpoints/authApi'
@@ -35,7 +35,11 @@ export function DashboardPage() {
   const { t } = useTranslation()
   const setPageTitle = useSetPageTitle()
   const { data: user, isLoading } = useGetUserInfoQuery()
-  const { data: preparations = [] } = useListPreparationsQuery()
+  const { data: allPreparations = [] } = useListPreparationsQuery()
+  const preparations = useMemo(
+    () => (user?.id != null ? allPreparations.filter((p) => p.user_id === user.id) : []),
+    [user, allPreparations]
+  )
   const { data: dailyRoadmap } = useGetDailyRoadmapQuery()
 
   useEffect(() => {

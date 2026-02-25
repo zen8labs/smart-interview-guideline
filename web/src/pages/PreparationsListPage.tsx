@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useMemo, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSetPageTitle } from '@/contexts/PageTitleContext'
+import { useGetUserInfoQuery } from '@/store/api/endpoints/authApi'
 import { useListPreparationsQuery, useCreatePreparationMutation } from '@/store/api/endpoints/preparationApi'
 import {
   Card,
@@ -16,7 +17,12 @@ import { Plus } from 'lucide-react'
 export function PreparationsListPage() {
   const navigate = useNavigate()
   const setPageTitle = useSetPageTitle()
-  const { data: preparations = [], isLoading } = useListPreparationsQuery()
+  const { data: user } = useGetUserInfoQuery()
+  const { data: allPreparations = [], isLoading } = useListPreparationsQuery()
+  const preparations = useMemo(
+    () => (user?.id != null ? allPreparations.filter((p) => p.user_id === user.id) : []),
+    [user, allPreparations]
+  )
   const [createPreparation, { isLoading: isCreating }] = useCreatePreparationMutation()
 
   useEffect(() => {
