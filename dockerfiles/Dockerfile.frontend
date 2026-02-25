@@ -19,15 +19,19 @@ FROM nginx:1.27-alpine
 
 RUN apk add --no-cache wget
 
-# Replace default config with SPA-aware config (try_files for client-side routes)
+# Default config: HTTPS on 443 + redirect 80→443. If certs missing, entrypoint switches to nginx-no-ssl.conf.
 COPY dockerfiles/nginx.conf /etc/nginx/conf.d/default.conf
+COPY dockerfiles/nginx-no-ssl.conf /etc/nginx/conf.d/nginx-no-ssl.conf
 
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
 RUN mkdir -p /etc/nginx/ssl
 EXPOSE 80 443
 
+COPY dockerfiles/entrypoint.frontend.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget -q -O /dev/null http://localhost/health || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]

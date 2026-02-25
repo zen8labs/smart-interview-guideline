@@ -152,6 +152,10 @@ activemq-data/
 .env
 .envrc
 .venv
+
+# SSL certs (folder tracked via .certs/.gitkeep; do not commit private keys)
+.certs/*
+!.certs/.gitkeep
 env/
 venv/
 ENV/

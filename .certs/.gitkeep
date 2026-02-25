@@ -1,0 +1,4 @@
+# Place SSL certs here for local/dev HTTPS:
+#   fullchain.pem
+#   privkey.pem
+# Do not commit the actual .pem files; keep this directory in .gitignore for contents.
