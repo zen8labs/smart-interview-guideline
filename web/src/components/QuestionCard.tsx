@@ -58,8 +58,6 @@ export function QuestionCard({
   onSelectAnswer,
   disabled = false,
 }: QuestionCardProps) {
-  const isMultipleChoice =
-    question.question_type === 'multiple_choice' || question.question_type === 'multiple choice'
   const isBoolean =
     question.question_type === 'true_false' || question.question_type === 'boolean'
 

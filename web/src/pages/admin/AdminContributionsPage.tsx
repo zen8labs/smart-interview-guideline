@@ -4,7 +4,6 @@ import {
   useGetAdminContributionsCountQuery,
   useApproveContributionMutation,
   useRejectContributionMutation,
-  type AdminContribution,
   type AdminContributionStatus,
 } from '@/store/api/endpoints/adminApi'
 import { Button } from '@/components/ui/button'

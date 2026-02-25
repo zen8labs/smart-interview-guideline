@@ -40,7 +40,7 @@ export const profileSchema = z.object({
       message: 'Invalid role selected',
     }),
   experience_years: z
-    .number({ invalid_type_error: 'Must be a number' })
+    .number({ message: 'Must be a number' })
     .int('Must be a whole number')
     .min(0, 'Cannot be negative')
     .max(50, 'Maximum 50 years'),

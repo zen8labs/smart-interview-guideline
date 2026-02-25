@@ -137,7 +137,7 @@ export const questionsApi = baseApi.injectEndpoints({
     // Get single question
     getQuestion: builder.query<Question, number>({
       query: (id) => `/admin/questions/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Question', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Question', id }],
     }),
 
     // Create question
@@ -157,7 +157,7 @@ export const questionsApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Question', id },
         { type: 'Question', id: 'LIST' },
       ],
@@ -169,7 +169,7 @@ export const questionsApi = baseApi.injectEndpoints({
         url: `/admin/questions/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (result, error, id) => [
+      invalidatesTags: (_result, _error, id) => [
         { type: 'Question', id },
         { type: 'Question', id: 'LIST' },
       ],
@@ -181,7 +181,7 @@ export const questionsApi = baseApi.injectEndpoints({
         url: `/admin/questions/${id}/approve`,
         method: 'PATCH',
       }),
-      invalidatesTags: (result, error, id) => [
+      invalidatesTags: (_result, _error, id) => [
         { type: 'Question', id },
         { type: 'Question', id: 'LIST' },
       ],
@@ -194,7 +194,7 @@ export const questionsApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: feedback ? { feedback } : undefined,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Question', id },
         { type: 'Question', id: 'LIST' },
       ],
@@ -206,7 +206,7 @@ export const questionsApi = baseApi.injectEndpoints({
         url: `/admin/questions/${id}/promote`,
         method: 'PATCH',
       }),
-      invalidatesTags: (result, error, id) => [
+      invalidatesTags: (_result, _error, id) => [
         { type: 'Question', id },
         { type: 'Question', id: 'LIST' },
       ],
@@ -219,7 +219,7 @@ export const questionsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { question_id }) => [
+      invalidatesTags: (_result, _error, { question_id }) => [
         { type: 'Question', id: question_id },
       ],
     }),
@@ -231,7 +231,7 @@ export const questionsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: skill_ids,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Question', id },
       ],
     }),
@@ -239,13 +239,13 @@ export const questionsApi = baseApi.injectEndpoints({
     // Get question skills
     getQuestionSkills: builder.query<Skill[], number>({
       query: (id) => `/admin/questions/${id}/skills`,
-      providesTags: (result, error, id) => [{ type: 'Question', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Question', id }],
     }),
 
     // Get question knowledge links
     getQuestionKnowledgeLinks: builder.query<KnowledgeLink[], number>({
       query: (id) => `/admin/questions/${id}/knowledge-links`,
-      providesTags: (result, error, id) => [{ type: 'Question', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Question', id }],
     }),
 
     // Bulk approve

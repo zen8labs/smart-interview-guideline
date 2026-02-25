@@ -88,13 +88,14 @@ export const adminApi = baseApi.injectEndpoints({
 
     // List users with pagination and filtering
     listUsers: builder.query<UserListResponse, UserListParams | void>({
-      query: (params = {}) => {
+      query: (params) => {
+        const p = params ?? {}
         const searchParams = new URLSearchParams()
-        if (params.page) searchParams.append('page', params.page.toString())
-        if (params.page_size) searchParams.append('page_size', params.page_size.toString())
-        if (params.email) searchParams.append('email', params.email)
-        if (params.is_active !== undefined) searchParams.append('is_active', params.is_active.toString())
-        if (params.is_admin !== undefined) searchParams.append('is_admin', params.is_admin.toString())
+        if (p.page) searchParams.append('page', p.page.toString())
+        if (p.page_size) searchParams.append('page_size', p.page_size.toString())
+        if (p.email) searchParams.append('email', p.email)
+        if (p.is_active !== undefined) searchParams.append('is_active', p.is_active.toString())
+        if (p.is_admin !== undefined) searchParams.append('is_admin', p.is_admin.toString())
 
         return `/admin/users?${searchParams.toString()}`
       },

@@ -21,7 +21,7 @@ export const companiesApi = baseApi.injectEndpoints({
     }),
     getCompany: builder.query<Company, number>({
       query: (id) => `companies/${id}`,
-      providesTags: (result, err, id) => [{ type: 'Company', id }],
+      providesTags: (_result, _err, id) => [{ type: 'Company', id }],
     }),
     createCompany: builder.mutation<Company, { name: string }>({
       query: (body) => ({

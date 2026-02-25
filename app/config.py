@@ -120,9 +120,10 @@ class ServerSettings(BaseSettings):
 
 
 class CORSSettings(BaseSettings):
-    origins: list[str] = Field(
-        default=["http://localhost:5173", "http://localhost:3000"],
-        description="Allowed CORS origins",
+    # Stored as str so env comma-separated value is not parsed as JSON by pydantic-settings
+    origins_raw: str = Field(
+        default="http://localhost:5173,http://localhost:3000",
+        description="Allowed CORS origins (comma-separated)",
         validation_alias="CORS_ORIGINS",
     )
 
@@ -144,13 +145,10 @@ class CORSSettings(BaseSettings):
         validation_alias="CORS_ALLOW_HEADERS",
     )
 
-    @field_validator("origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
-        """Parse CORS origins from comma-separated string or list."""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+    @property
+    def origins(self) -> list[str]:
+        """Parse CORS origins from comma-separated string."""
+        return [origin.strip() for origin in self.origins_raw.split(",") if origin.strip()]
 
     model_config = SettingsConfigDict(
         env_file=".env",

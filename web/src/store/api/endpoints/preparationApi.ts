@@ -102,7 +102,7 @@ export const preparationApi = baseApi.injectEndpoints({
     }),
     getPreparation: builder.query<PreparationItem, number>({
       query: (id) => `preparations/${id}`,
-      providesTags: (result, err, id) => [{ type: 'Interview', id: `prep-${id}` }],
+      providesTags: (_result, _err, id) => [{ type: 'Interview', id: `prep-${id}` }],
     }),
     createPreparation: builder.mutation<PreparationItem, void>({
       query: () => ({
@@ -126,14 +126,14 @@ export const preparationApi = baseApi.injectEndpoints({
           body: formData,
         }
       },
-      invalidatesTags: (result, err, { preparationId }) => [
+      invalidatesTags: (_result, _err, { preparationId }) => [
         { type: 'Interview', id: `prep-${preparationId}` },
         'Interview',
       ],
     }),
     getPreparationJdAnalysis: builder.query<JDAnalysisResult, number>({
       query: (preparationId) => `preparations/${preparationId}/jd-analysis`,
-      providesTags: (result, err, id) => [{ type: 'Interview', id: `prep-${id}` }],
+      providesTags: (_result, _err, id) => [{ type: 'Interview', id: `prep-${id}` }],
     }),
     getMemoryScanQuestions: builder.query<
       MemoryScanQuestion[],
@@ -141,7 +141,7 @@ export const preparationApi = baseApi.injectEndpoints({
     >({
       query: ({ preparationId, source = 'auto' }) =>
         `preparations/${preparationId}/memory-scan-questions?source=${source}`,
-      providesTags: (result, err, { preparationId }) => [
+      providesTags: (_result, _err, { preparationId }) => [
         { type: 'Interview', id: `prep-${preparationId}` },
       ],
     }),
@@ -154,7 +154,7 @@ export const preparationApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: (result, err, { preparationId }) => [
+      invalidatesTags: (_result, _err, { preparationId }) => [
         { type: 'Interview', id: `prep-${preparationId}` },
         'Interview',
       ],
@@ -167,7 +167,7 @@ export const preparationApi = baseApi.injectEndpoints({
         url: `preparations/${preparationId}/create-roadmap`,
         method: 'POST',
       }),
-      invalidatesTags: (result, err, preparationId) => [
+      invalidatesTags: (_result, _err, preparationId) => [
         { type: 'Interview', id: `prep-${preparationId}` },
         'Interview',
       ],
@@ -177,7 +177,7 @@ export const preparationApi = baseApi.injectEndpoints({
         url: `preparations/${preparationId}/memory-scan/reset`,
         method: 'POST',
       }),
-      invalidatesTags: (result, err, preparationId) => [
+      invalidatesTags: (_result, _err, preparationId) => [
         { type: 'Interview', id: `prep-${preparationId}` },
         'Interview',
       ],
@@ -187,13 +187,13 @@ export const preparationApi = baseApi.injectEndpoints({
       number
     >({
       query: (preparationId) => `preparations/${preparationId}/roadmap`,
-      providesTags: (result, err, preparationId) => [
+      providesTags: (_result, _err, preparationId) => [
         { type: 'Interview', id: `prep-${preparationId}` },
       ],
     }),
     getSelfCheckQuestions: builder.query<SelfCheckQuestion[], number>({
       query: (preparationId) => `preparations/${preparationId}/self-check-questions`,
-      providesTags: (result, err, preparationId) => [
+      providesTags: (_result, _err, preparationId) => [
         { type: 'Interview', id: `prep-${preparationId}` },
       ],
     }),

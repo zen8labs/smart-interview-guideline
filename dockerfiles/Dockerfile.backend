@@ -27,17 +27,21 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
 RUN groupadd --system --gid 999 appuser && \
-    useradd --system --gid 999 --uid 999 --create-home appuser
+    useradd --system --gid 999 --uid 999 --create-home appuser && \
+    apt-get update && apt-get install -y --no-install-recommends gosu && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=python-builder --chown=appuser:appuser /app/.venv /app/.venv
 COPY --from=python-builder --chown=appuser:appuser /app/app /app/app
 COPY --from=python-builder --chown=appuser:appuser /app/asgi.py /app/gunicorn.config.py ./
+COPY dockerfiles/entrypoint.backend.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-USER appuser
-
+# Run as root so entrypoint can create upload dirs and chown; then gosu to appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "-c", "gunicorn.config.py", "asgi:app"]

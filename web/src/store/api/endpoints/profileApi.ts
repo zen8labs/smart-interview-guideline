@@ -51,7 +51,7 @@ export const profileApi = baseApi.injectEndpoints({
     getCvFile: builder.query<Blob, void>({
       query: () => ({
         url: '/user/cv',
-        responseHandler: (response) => response.blob(),
+        responseHandler: (response: Response) => response.blob(),
       }),
     }),
 

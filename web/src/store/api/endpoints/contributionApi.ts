@@ -46,7 +46,7 @@ export const contributionApi = baseApi.injectEndpoints({
     }),
     getContribution: builder.query<Contribution, number>({
       query: (id) => `contributions/${id}`,
-      providesTags: (result, err, id) => [{ type: 'Contribution', id }],
+      providesTags: (_result, _err, id) => [{ type: 'Contribution', id }],
     }),
     createContribution: builder.mutation<Contribution, ContributionCreateInput>({
       query: (body) => ({
