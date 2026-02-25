@@ -30,11 +30,13 @@ smart-interview-guideline/
 │   │   └── assets/       # Static assets
 │   └── dist/             # Production build output
 ├── dockerfiles/          # Docker configurations
-│   ├── Dockerfile        # Production multi-stage build
+│   ├── Dockerfile.backend   # Backend-only production
+│   ├── Dockerfile.frontend  # Frontend build + nginx (SPA)
+│   ├── nginx.conf        # SPA fallback (try_files → index.html)
 │   ├── dev.Dockerfile    # Backend development with hot reload
 │   └── dev-frontend.Dockerfile  # Frontend development with HMR
-└── docker-compose.yaml   # Production services
-    docker-compose.override.yaml  # Development overrides
+└── docker-compose.yaml   # Production: backend + frontend (nginx) + postgres
+    docker-compose.dev.yaml       # Development overrides (use with -f to get Vite + hot reload)
 ```
 
 ## Setup Commands
@@ -48,16 +50,17 @@ smart-interview-guideline/
 cp .env.example .env
 # Edit .env if needed (database credentials, OpenAI API key, etc.)
 
-# 2. Start all services with hot reload
-docker compose up -d
+# 2. Production: backend + frontend (nginx, static build)
+docker compose up -d --build
 
-# 3. Start with watch mode (recommended for active development)
-docker compose watch
+# Development (Vite HMR, backend hot reload): use dev override
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml watch  # optional watch mode
 
 # 4. View logs
-docker compose logs -f          # All services
-docker compose logs -f app      # Backend only
-docker compose logs -f frontend # Frontend only
+docker compose logs -f            # All services
+docker compose logs -f backend    # Backend only
+docker compose logs -f frontend   # Frontend only
 ```
 
 ## Code Style and Conventions
@@ -256,17 +259,16 @@ See `.env.example` for all options (database pooling, server config, CORS, OpenA
 
 ## Service URLs
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
+- **Development**: Frontend http://localhost:5173 (Vite), Backend http://localhost:8000
+- **Production**: Frontend http://localhost:8080 (nginx), Backend http://localhost:8000
 - API Docs: http://localhost:8000/docs
-- Production: Backend serves frontend from port 8000
 
 ## Common Tasks
 
 ```bash
 # Debug
-docker compose logs -f app
-docker compose exec app bash
+docker compose logs -f backend
+docker compose exec backend bash
 
 # Clean restart
 docker compose down -v

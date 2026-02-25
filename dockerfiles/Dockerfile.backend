@@ -1,0 +1,43 @@
+# Backend-only Dockerfile (no frontend; frontend runs as separate service)
+# Stage 1: Python Builder with uv
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS python-builder
+
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --no-install-project --no-dev
+
+COPY app/ ./app/
+COPY asgi.py gunicorn.config.py pyproject.toml ./
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev
+
+# Stage 2: Final Runtime Image
+FROM python:3.14-slim-bookworm
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+RUN groupadd --system --gid 999 appuser && \
+    useradd --system --gid 999 --uid 999 --create-home appuser
+
+COPY --from=python-builder --chown=appuser:appuser /app/.venv /app/.venv
+COPY --from=python-builder --chown=appuser:appuser /app/app /app/app
+COPY --from=python-builder --chown=appuser:appuser /app/asgi.py /app/gunicorn.config.py ./
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
+CMD ["gunicorn", "-c", "gunicorn.config.py", "asgi:app"]

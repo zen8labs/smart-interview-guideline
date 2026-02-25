@@ -6,7 +6,8 @@ This guide explains how to run the application in development mode with hot relo
 
 All Dockerfiles are organized in the `dockerfiles/` directory:
 
-- `dockerfiles/Dockerfile` - Production build (multi-stage)
+- `dockerfiles/Dockerfile.backend` - Backend production
+- `dockerfiles/Dockerfile.frontend` - Frontend production (build + nginx)
 - `dockerfiles/dev.Dockerfile` - Backend development with hot reload
 - `dockerfiles/dev-frontend.Dockerfile` - Frontend development with HMR
 
@@ -32,28 +33,26 @@ cp .env.example .env
 
 ### 2. Start Development Environment
 
-The project uses `docker-compose.override.yaml` which automatically applies when running `docker compose` commands.
+By default, `docker compose up` runs **production** (backend + frontend nginx). For development (Vite HMR, backend hot reload), use the dev override file:
 
 ```bash
-# Start all services in development mode
-docker compose up -d
+# Development: backend hot reload + frontend Vite on :5173
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
 
 # View logs
-docker compose logs -f
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml logs -f
 
 # View specific service logs
-docker compose logs -f app
+docker compose logs -f backend
 docker compose logs -f frontend
 docker compose logs -f postgres
 ```
 
 ### 3. Development with Watch Mode (Recommended)
 
-Docker Compose watch mode provides automatic syncing and rebuilding:
-
 ```bash
-# Start with watch mode for hot reload
-docker compose watch
+# Start with watch mode for hot reload (must use dev override)
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml watch
 
 # This will:
 # - Sync code changes to containers automatically
@@ -126,8 +125,8 @@ docker compose up -d
 # Stop the services
 docker compose down
 
-# Rebuild app service
-docker compose build app
+# Rebuild backend service
+docker compose build backend
 
 # Start again
 docker compose up -d
@@ -145,11 +144,11 @@ docker compose down
 docker compose down -v
 
 # Rebuild specific service
-docker compose build app
+docker compose build backend
 docker compose build frontend
 
 # Restart specific service
-docker compose restart app
+docker compose restart backend
 docker compose restart frontend
 
 # View running containers
@@ -173,11 +172,11 @@ docker compose exec -T postgres psql -U postgres smart_interview < backup.sql
 
 ```bash
 # Execute commands in running container
-docker compose exec app bash
+docker compose exec backend bash
 docker compose exec frontend sh
 
 # View container logs with timestamps
-docker compose logs -f --timestamps app
+docker compose logs -f --timestamps backend
 
 # Follow logs from all services
 docker compose logs -f
@@ -185,17 +184,13 @@ docker compose logs -f
 
 ## Production Build
 
-To test the production build locally:
+**Default `docker compose` = production.** Backend and frontend run as separate services: backend (FastAPI) on port 8000, frontend (nginx serving built static SPA) on port 8080. Nginx uses `try_files $uri $uri/ /index.html` so reload/deep links work.
 
 ```bash
-# Remove override file temporarily
-mv docker-compose.override.yaml docker-compose.override.yaml.bak
-
-# Build and run production setup
+# Build and run production (frontend = yarn build + nginx, backend = gunicorn)
 docker compose up -d --build
 
-# Restore override file
-mv docker-compose.override.yaml.bak docker-compose.override.yaml
+# Frontend: http://localhost:8080   Backend API: http://localhost:8000
 ```
 
 ## Troubleshooting
@@ -210,7 +205,7 @@ mv docker-compose.override.yaml.bak docker-compose.override.yaml
 
 - Check that `--reload` flag is present in the command
 - Verify volume mounts exclude `.venv` directory
-- Check logs: `docker compose logs app`
+- Check logs: `docker compose logs backend`
 
 ### Database connection issues
 

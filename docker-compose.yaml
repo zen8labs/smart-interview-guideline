@@ -21,23 +21,19 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
 
-  app:
+  backend:
     image: nguyenkhacthanh/smart-interview-guideline:latest
-    container_name: smart-interview-app
+    container_name: smart-interview-backend
     restart: unless-stopped
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile
+      dockerfile: dockerfiles/Dockerfile.backend
     environment:
-      # Database Configuration
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-smart_interview}
-      
-      # Gunicorn Configuration
       WORKERS: ${WORKERS:-4}
       BIND_ADDRESS: ${BIND_ADDRESS:-0.0.0.0:8000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      
-      # Application Configuration
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost}
       PYTHONUNBUFFERED: 1
       PYTHONDONTWRITEBYTECODE: 1
     volumes:
@@ -55,6 +51,26 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  frontend:
+    image: nguyenkhacthanh/smart-interview-guideline-frontend:latest
+    container_name: smart-interview-frontend
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
 networks:
   app_network:

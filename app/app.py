@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlmodel import select
 
 from app.config import settings
@@ -125,7 +124,6 @@ def create_app():
             raise HTTPException(status_code=404, detail="Example not found")
         return example
 
-    # Mount static files last (catches all routes)
-    app.mount("/", StaticFiles(directory="./web/dist", html=True), name="static")
+    # Frontend is served by a separate nginx service; backend only exposes API.
 
     return app
