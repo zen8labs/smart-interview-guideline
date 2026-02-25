@@ -33,7 +33,7 @@ services:
       WORKERS: ${WORKERS:-4}
       BIND_ADDRESS: ${BIND_ADDRESS:-0.0.0.0:8000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost,https://sig.zen8labs.io}
       PYTHONUNBUFFERED: 1
       PYTHONDONTWRITEBYTECODE: 1
     volumes:
@@ -60,9 +60,10 @@ services:
       context: .
       dockerfile: dockerfiles/Dockerfile.frontend
       args:
+        # Production (sig.zen8labs.io): set VITE_API_BASE_URL=/api in .env
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "${FRONTEND_PORT:-80}:80"
     networks:
       - app_network
     healthcheck:
