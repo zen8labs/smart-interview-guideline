@@ -63,7 +63,10 @@ services:
         # Production (sig.zen8labs.io): set VITE_API_BASE_URL=/api in .env
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "${FRONTEND_HTTP_PORT:-80}:80"
+      - "${FRONTEND_HTTPS_PORT:-443}:443"
+    volumes:
+      - "${SSL_CERTS_PATH:-./certs}:/etc/nginx/ssl:ro"
     networks:
       - app_network
     healthcheck:
