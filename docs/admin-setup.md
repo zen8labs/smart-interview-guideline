@@ -20,7 +20,7 @@ To create your first admin user, use the provided script:
 
 ```bash
 # Using Docker (recommended)
-docker compose exec app python scripts/create_admin.py
+docker compose exec backend python scripts/create_admin.py
 
 # Or locally with uv
 uv run python scripts/create_admin.py

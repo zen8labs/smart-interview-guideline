@@ -12,6 +12,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-install-project --no-dev
 
 COPY app/ ./app/
+COPY scripts/ ./scripts/
 COPY asgi.py gunicorn.config.py pyproject.toml ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -33,6 +34,7 @@ RUN groupadd --system --gid 999 appuser && \
 
 COPY --from=python-builder --chown=appuser:appuser /app/.venv /app/.venv
 COPY --from=python-builder --chown=appuser:appuser /app/app /app/app
+COPY --from=python-builder --chown=appuser:appuser /app/scripts /app/scripts
 COPY --from=python-builder --chown=appuser:appuser /app/asgi.py /app/gunicorn.config.py ./
 COPY dockerfiles/entrypoint.backend.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
